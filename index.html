@@ -461,10 +461,12 @@ function rowHtml(k) {
     <td data-acc>
       <select class="tax-select" id="debit_tax_${k}">
         <option value=""></option>
-        <option value="課">課</option>
-        <option value="非">非</option>
-        <option value="不">不</option>
-        <option value="共">共</option>
+        <option value="課込">課込</option>
+        <option value="課抜">課抜</option>
+        <option value="非課税">非課税</option>
+        <option value="不課税">不課税</option>
+        <option value="免税">免税</option>
+        <option value="免抜">免抜</option>
       </select>
     </td>
     <td class="amount-cell"><input type="number" id="debit_amount_${k}" placeholder="0" min="0" step="1" oninput="updateTotal()"></td>
@@ -485,10 +487,12 @@ function rowHtml(k) {
     <td data-acc>
       <select class="tax-select" id="credit_tax_${k}">
         <option value=""></option>
-        <option value="課">課</option>
-        <option value="非">非</option>
-        <option value="不">不</option>
-        <option value="共">共</option>
+        <option value="課込">課込</option>
+        <option value="課抜">課抜</option>
+        <option value="非課税">非課税</option>
+        <option value="不課税">不課税</option>
+        <option value="免税">免税</option>
+        <option value="免抜">免抜</option>
       </select>
     </td>
     <td class="amount-cell"><input type="number" id="credit_amount_${k}" placeholder="0" min="0" step="1" oninput="updateTotal()"></td>
