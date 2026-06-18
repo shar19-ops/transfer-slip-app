@@ -67,10 +67,22 @@
   table.detail td input:focus, table.detail td select:focus, table.detail td textarea:focus {
     outline: 1px solid #2fa364; border-radius: 3px; background: #fffbe6;
   }
+  .account-cell { position: relative; }
+  .account-cell select.account-select {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: pointer; padding: 0;
+  }
+  .account-cell .account-display {
+    font-size: 13px; line-height: 1.35; min-height: 2.7em;
+    display: flex; flex-direction: column; justify-content: center;
+    pointer-events: none;
+  }
+  .account-cell .account-display span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .account-cell .acc-code { color: #5a6a5f; font-size: 12px; }
   table.detail td.amount-cell input { text-align: right; }
   table.detail .split-cell { display: flex; flex-direction: column; gap: 2px; }
-  table.detail .split-cell input { border-bottom: 1px dashed #dcefe1; }
-  table.detail .split-cell input:last-child { border-bottom: none; }
+  table.detail .split-cell input, table.detail .split-cell select { border-bottom: 1px dashed #dcefe1; }
+  table.detail .split-cell input:last-child, table.detail .split-cell select:last-child { border-bottom: none; }
   table.detail tr.total-row td { background: #e6f5ea; font-weight: 700; padding: 8px 6px; }
   table.detail tr.page-sep td { background: #cfe9d7; color: #1a7a4a; font-weight: 700; text-align: center; padding: 4px; font-size: 12px; letter-spacing: 0.1em; }
   .total-amount { text-align: right; font-size: 14px; color: #1a7a4a; }
@@ -174,7 +186,8 @@
   body:not(.acc-mode) table.detail td[data-acc] textarea {
     pointer-events: none; color: #99a !important; background: #edf0ed !important;
   }
-  body:not(.acc-mode) [data-acc].btn-calendar {
+  body:not(.acc-mode) [data-acc].btn-calendar,
+  body:not(.acc-mode) [data-acc].btn-add-page {
     pointer-events: none; opacity: 0.5;
   }
 </style>
@@ -270,6 +283,8 @@
     <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
       <span>▌ 仕訳明細（最大6行／枚）</span>
       <div style="display:flex; gap:8px;">
+        <button type="button" class="btn-add-page" data-acc onclick="openAccountManager()">＋ 科目追加</button>
+        <button type="button" class="btn-add-page" data-acc onclick="openExpenseCdManager()">＋ 経費CD追加</button>
         <button type="button" id="remove-page-btn" class="btn-remove-page" onclick="removePage()" disabled>－ ページを削除</button>
         <button type="button" class="btn-add-page" onclick="addPage()">＋ ページを増やす</button>
       </div>
@@ -296,7 +311,10 @@
 
   <!-- 収支CD -->
   <div class="card">
-    <div class="card-header">▌ 収支CD（最大4行）</div>
+    <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+      <span>▌ 収支CD（最大4行）</span>
+      <button type="button" class="btn-add-page" data-acc onclick="openKessanManager()">＋ 収支項目追加</button>
+    </div>
     <div class="detail-table-wrap">
       <table class="detail">
         <thead>
@@ -340,6 +358,21 @@
     <div class="modal-btn-row">
       <button class="btn-cancel" onclick="closeExportModal()">キャンセル</button>
       <button class="btn-login" onclick="confirmExport()">PDF生成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 科目／経費CDリスト 追加・削除モーダル -->
+<div id="list-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box" style="width:380px;">
+    <h2 id="list-modal-title">リストの追加・削除</h2>
+    <div id="list-modal-add-fields" style="display:flex; gap:8px;"></div>
+    <div class="modal-btn-row" style="justify-content:flex-start;">
+      <button class="btn-login" onclick="listModalAdd()">＋ 追加</button>
+    </div>
+    <div id="list-modal-extra-list" style="max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;"></div>
+    <div class="modal-btn-row">
+      <button class="btn-cancel" onclick="closeListModal()">閉じる</button>
     </div>
   </div>
 </div>
@@ -455,9 +488,196 @@ const NUM_ROWS = 6;
 const tbody = document.getElementById('detail-tbody');
 let pageCount = 1;
 
+function loadExtraList(key) {
+  try { return JSON.parse(localStorage.getItem(key) || '[]').filter(v => typeof v === 'string' && v); }
+  catch (e) { return []; }
+}
+function saveExtraList(key, arr) {
+  try { localStorage.setItem(key, JSON.stringify(arr)); } catch (e) {}
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+const EXPENSE_CD_BASE = ['旅1','事2','交3','仮4','地7','厚9','光12','租13','雑18','材00','法8','保守21','飲交27'];
+let EXPENSE_CD_EXTRA = loadExtraList('transfer_slip_expense_cd_extra');
+const EXPENSE_CD_LIST = EXPENSE_CD_BASE.concat(EXPENSE_CD_EXTRA.filter(v => !EXPENSE_CD_BASE.includes(v)));
+function buildExpenseCdOptions() {
+  return '<option value=""></option>' + EXPENSE_CD_LIST.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+}
+
+const ACCOUNT_BASE = [
+  '預り金\n4118-999','飲食等交際費\n7334-002','受入利息\n7811-001','買掛金\n4113-001',
+  '仮受消費税\n4911-001','仮払金\n1303-999','仮払消費税\n1501-001','完成工事未収入金\n1202-001',
+  '広告宣伝費\n7333-001','交際費\n7334-001','工事保証金\n1307-001','工事未払金\n4112-001',
+  '差入保証金\n1307-002','雑費\n7342-001','事業税等\n7339-001','事務用品費\n7317-001',
+  '従業員給与手当\n7312-001','修繕維持費\n7316-001','租税公課\n7338-001','地代家賃\n7336-001',
+  '通信交通費ガス\n7322-001','通信交通費その他\n7324-001','通信交通費通信費\n7323-001','通信交通費定期\n7321-001',
+  '電話加入権\n2251-001','動力用水光熱費\n7331-001','七十七・本店普通\n1105-321','福利厚生費\n7315-001',
+  '法定福利費\n7314-001','保険料\n7341-001','本店\n6911-001','前払費用\n1208-001',
+  '未成工事受入金\n4117-001','未成工事支出金\n1205-001','三井住友・五反田出張所\n1104-111','未払費用\n4116-001',
+];
+let ACCOUNT_EXTRA = loadExtraList('transfer_slip_account_extra');
+const ACCOUNT_LIST = ACCOUNT_BASE.concat(ACCOUNT_EXTRA.filter(v => !ACCOUNT_BASE.includes(v)));
+function buildAccountOptions() {
+  return '<option value=""></option>' + ACCOUNT_LIST.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v.replace('\n','　'))}</option>`).join('');
+}
+function renderAccountDisplay(id) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  const disp = sel.nextElementSibling;
+  const [name, code] = sel.value.split('\n');
+  disp.querySelector('.acc-name').textContent = name || '';
+  disp.querySelector('.acc-code').textContent = code || '';
+}
+function refreshAllAccountDisplays() {
+  document.querySelectorAll('select.account-select').forEach(sel => renderAccountDisplay(sel.id));
+}
+
+// ─── 科目／経費CDリストの追加・削除モーダル ──────────────────────
+let listModalMode = null; // 'account' | 'expense'
+
+function openAccountManager() {
+  listModalMode = 'account';
+  document.getElementById('list-modal-title').textContent = '科目の追加・削除';
+  document.getElementById('list-modal-add-fields').innerHTML =
+    '<input type="text" id="list-modal-input-name" placeholder="科目名" style="flex:1;">' +
+    '<input type="text" id="list-modal-input-code" placeholder="コード（例: 4118-999）" style="flex:1;">';
+  renderListModalExtras();
+  document.getElementById('list-modal').style.display = 'flex';
+}
+function openExpenseCdManager() {
+  listModalMode = 'expense';
+  document.getElementById('list-modal-title').textContent = '経費CDの追加・削除';
+  document.getElementById('list-modal-add-fields').innerHTML =
+    '<input type="text" id="list-modal-input-code" placeholder="経費CD（例: 旅1）" style="flex:1;">';
+  renderListModalExtras();
+  document.getElementById('list-modal').style.display = 'flex';
+}
+function openKessanManager() {
+  listModalMode = 'kessan';
+  document.getElementById('list-modal-title').textContent = '収支項目の追加・削除';
+  document.getElementById('list-modal-add-fields').innerHTML =
+    '<input type="text" id="list-modal-input-code" placeholder="収支CD（例: 111）" style="flex:1;">' +
+    '<input type="text" id="list-modal-input-name" placeholder="収支項目名" style="flex:1;">';
+  renderListModalExtras();
+  document.getElementById('list-modal').style.display = 'flex';
+}
+function closeListModal() {
+  document.getElementById('list-modal').style.display = 'none';
+  listModalMode = null;
+}
+function renderListModalExtras() {
+  const listEl = document.getElementById('list-modal-extra-list');
+  let extras, labelFn;
+  if (listModalMode === 'account') { extras = ACCOUNT_EXTRA; labelFn = v => v.replace('\n','　'); }
+  else if (listModalMode === 'kessan') { extras = KESSAN_EXTRA; labelFn = e => `${e.name}　${e.cd}`; }
+  else { extras = EXPENSE_CD_EXTRA; labelFn = v => v; }
+  if (!extras.length) {
+    listEl.innerHTML = '<p style="font-size:12px; color:#8a958e; margin:0;">追加した項目はまだありません。</p>';
+    return;
+  }
+  listEl.innerHTML = extras.map((v, i) => `
+    <div style="display:flex; align-items:center; justify-content:space-between; border:1px solid #dce5df; border-radius:6px; padding:6px 10px; font-size:13px; gap:8px;">
+      <span>${escapeHtml(labelFn(v))}</span>
+      <button type="button" onclick="listModalRemove(${i})" style="border:none; background:#fbeaea; color:#c0392b; border-radius:5px; padding:3px 10px; font-size:12px; cursor:pointer; font-family:inherit; flex-shrink:0;">削除</button>
+    </div>`).join('');
+}
+function appendOptionToSelects(selector, value) {
+  document.querySelectorAll(selector).forEach(sel => {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = value.replace('\n', '　');
+    sel.appendChild(opt);
+  });
+}
+function removeOptionFromSelects(selector, value) {
+  document.querySelectorAll(selector).forEach(sel => {
+    if (sel.value === value) {
+      sel.value = '';
+      if (sel.classList.contains('account-select')) renderAccountDisplay(sel.id);
+    }
+    const opt = Array.from(sel.options).find(o => o.value === value);
+    if (opt) opt.remove();
+  });
+}
+function listModalAdd() {
+  if (listModalMode === 'account') {
+    const nameEl = document.getElementById('list-modal-input-name');
+    const codeEl = document.getElementById('list-modal-input-code');
+    const name = nameEl.value.trim();
+    const code = codeEl.value.trim();
+    if (!name) { alert('科目名を入力してください。'); return; }
+    const v = code ? `${name}\n${code}` : name;
+    if (ACCOUNT_LIST.includes(v)) { alert('既にリストにあります。'); return; }
+    ACCOUNT_LIST.push(v);
+    ACCOUNT_EXTRA.push(v);
+    saveExtraList('transfer_slip_account_extra', ACCOUNT_EXTRA);
+    appendOptionToSelects('select[id^="debit_account_"], select[id^="credit_account_"]', v);
+    nameEl.value = ''; codeEl.value = '';
+  } else if (listModalMode === 'kessan') {
+    const codeEl = document.getElementById('list-modal-input-code');
+    const nameEl = document.getElementById('list-modal-input-name');
+    const cd = codeEl.value.trim();
+    const name = nameEl.value.trim();
+    if (!cd || !name) { alert('収支CDと収支項目名を両方入力してください。'); return; }
+    if (cd in KESSAN_NAME_MAP) { alert('そのCDは既にリストにあります。'); return; }
+    if (KESSAN_NAME_LIST.includes(name)) { alert('その項目名は既にリストにあります。'); return; }
+    KESSAN_NAME_MAP[cd] = name;
+    KESSAN_CD_BY_NAME[name] = cd;
+    KESSAN_NAME_LIST.push(name);
+    KESSAN_EXTRA.push({ cd, name });
+    saveExtraList('transfer_slip_kessan_extra', KESSAN_EXTRA);
+    appendOptionToSelects('select[id^="kessan_name_"]', name);
+    codeEl.value = ''; nameEl.value = '';
+  } else {
+    const codeEl = document.getElementById('list-modal-input-code');
+    const code = codeEl.value.trim();
+    if (!code) { alert('経費CDを入力してください。'); return; }
+    if (EXPENSE_CD_LIST.includes(code)) { alert('既にリストにあります。'); return; }
+    EXPENSE_CD_LIST.push(code);
+    EXPENSE_CD_EXTRA.push(code);
+    saveExtraList('transfer_slip_expense_cd_extra', EXPENSE_CD_EXTRA);
+    appendOptionToSelects('select[id^="expense_cd_"]', code);
+    codeEl.value = '';
+  }
+  renderListModalExtras();
+}
+function listModalRemove(i) {
+  if (listModalMode === 'account') {
+    const v = ACCOUNT_EXTRA.splice(i, 1)[0];
+    const idx = ACCOUNT_LIST.indexOf(v);
+    if (idx >= 0) ACCOUNT_LIST.splice(idx, 1);
+    saveExtraList('transfer_slip_account_extra', ACCOUNT_EXTRA);
+    removeOptionFromSelects('select[id^="debit_account_"], select[id^="credit_account_"]', v);
+  } else if (listModalMode === 'kessan') {
+    const e = KESSAN_EXTRA.splice(i, 1)[0];
+    delete KESSAN_NAME_MAP[e.cd];
+    delete KESSAN_CD_BY_NAME[e.name];
+    const idx = KESSAN_NAME_LIST.indexOf(e.name);
+    if (idx >= 0) KESSAN_NAME_LIST.splice(idx, 1);
+    saveExtraList('transfer_slip_kessan_extra', KESSAN_EXTRA);
+    removeOptionFromSelects('select[id^="kessan_name_"]', e.name);
+    for (let r = 0; r < KESSAN_ROWS; r++) onKessanNameChange(r);
+  } else {
+    const v = EXPENSE_CD_EXTRA.splice(i, 1)[0];
+    const idx = EXPENSE_CD_LIST.indexOf(v);
+    if (idx >= 0) EXPENSE_CD_LIST.splice(idx, 1);
+    saveExtraList('transfer_slip_expense_cd_extra', EXPENSE_CD_EXTRA);
+    removeOptionFromSelects('select[id^="expense_cd_"]', v);
+  }
+  renderListModalExtras();
+}
+document.getElementById('list-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeListModal();
+});
+
 function rowHtml(k) {
   return `
-    <td data-acc><textarea id="debit_account_${k}" rows="2" placeholder=""></textarea></td>
+    <td data-acc class="account-cell">
+      <select id="debit_account_${k}" class="account-select" onchange="renderAccountDisplay('debit_account_${k}')">${buildAccountOptions()}</select>
+      <div class="account-display"><span class="acc-name"></span><span class="acc-code"></span></div>
+    </td>
     <td data-acc>
       <select class="tax-select" id="debit_tax_${k}">
         <option value=""></option>
@@ -478,12 +698,15 @@ function rowHtml(k) {
     </td>
     <td data-acc>
       <div class="split-cell">
-        <input type="text" id="expense_cd_${k}" placeholder="経費CD">
+        <select id="expense_cd_${k}">${buildExpenseCdOptions()}</select>
         <input type="text" id="memo_cd_${k}" placeholder="摘要CD">
       </div>
     </td>
     <td><textarea id="summary_${k}" rows="2" placeholder=""></textarea></td>
-    <td data-acc><textarea id="credit_account_${k}" rows="2" placeholder=""></textarea></td>
+    <td data-acc class="account-cell">
+      <select id="credit_account_${k}" class="account-select" onchange="renderAccountDisplay('credit_account_${k}')">${buildAccountOptions()}</select>
+      <div class="account-display"><span class="acc-name"></span><span class="acc-code"></span></div>
+    </td>
     <td data-acc>
       <select class="tax-select" id="credit_tax_${k}">
         <option value=""></option>
@@ -567,13 +790,76 @@ function removePage() {
 setPageCount(1);
 
 // ─── 行生成：収支CD ──────────────────────────────────────────
+const KESSAN_NAME_MAP = {
+  '111': '売上現金回収高',
+  '112': '未収金回収高',
+  '114': '受取利息',
+  '116': '雑収入',
+  '181': 'その他営業収入',
+  '192': '売上高相殺',
+  '212': '現金仕入高',
+  '213': '工料現金支払',
+  '214': 'その他工事原価',
+  '216': 'その他一般管理費',
+  '218': '未払金、未払費用',
+  '281': 'その他営業支出',
+  '291': '手形支払高',
+};
+const KESSAN_CD_BY_NAME = Object.fromEntries(Object.entries(KESSAN_NAME_MAP).map(([cd, name]) => [name, cd]));
+const KESSAN_NAME_LIST = Object.values(KESSAN_NAME_MAP);
+let KESSAN_EXTRA = [];
+try {
+  const savedKessan = JSON.parse(localStorage.getItem('transfer_slip_kessan_extra') || '[]');
+  if (Array.isArray(savedKessan)) KESSAN_EXTRA = savedKessan.filter(e => e && typeof e.cd === 'string' && typeof e.name === 'string');
+} catch (e) {}
+KESSAN_EXTRA.forEach(e => {
+  if (!(e.cd in KESSAN_NAME_MAP)) {
+    KESSAN_NAME_MAP[e.cd] = e.name;
+    KESSAN_CD_BY_NAME[e.name] = e.cd;
+    KESSAN_NAME_LIST.push(e.name);
+  }
+});
+function buildKessanNameOptions() {
+  return '<option value=""></option>' + KESSAN_NAME_LIST.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+}
+function onKessanNameChange(i) {
+  const name = document.getElementById(`kessan_name_${i}`).value;
+  document.getElementById(`kessan_cd_${i}`).value = KESSAN_CD_BY_NAME[name] || '';
+}
+function formatNumberWithCommas(str) {
+  const digits = String(str || '').replace(/[^0-9]/g, '');
+  if (!digits) return '';
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+function formatYenAmount(str) {
+  const formatted = formatNumberWithCommas(str);
+  return formatted ? '￥' + formatted : '';
+}
+function onKessanAmountInput(i) {
+  const el = document.getElementById(`kessan_amount_${i}`);
+  el.value = el.value.replace(/[^0-9]/g, '');
+}
+function onKessanAmountFocus(i) {
+  const el = document.getElementById(`kessan_amount_${i}`);
+  el.value = el.value.replace(/[^0-9]/g, '');
+}
+function onKessanAmountBlur(i) {
+  const el = document.getElementById(`kessan_amount_${i}`);
+  el.value = formatYenAmount(el.value);
+}
+function formatAllKessanAmounts() {
+  for (let i = 0; i < KESSAN_ROWS; i++) {
+    const el = document.getElementById(`kessan_amount_${i}`);
+    if (el) el.value = formatYenAmount(el.value);
+  }
+}
 const kessanTbody = document.getElementById('kessan-tbody');
 for (let i = 0; i < KESSAN_ROWS; i++) {
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td data-acc><input type="text" id="kessan_cd_${i}" placeholder=""></td>
-    <td data-acc><input type="text" id="kessan_name_${i}" placeholder=""></td>
-    <td class="amount-cell" data-acc><input type="number" id="kessan_amount_${i}" placeholder="0" min="0" step="1"></td>
+    <td data-acc><input type="text" id="kessan_cd_${i}" placeholder="" readonly style="background:#eef3ee; color:#445;"></td>
+    <td data-acc><select id="kessan_name_${i}" onchange="onKessanNameChange(${i})">${buildKessanNameOptions()}</select></td>
+    <td class="amount-cell" data-acc><input type="text" inputmode="numeric" id="kessan_amount_${i}" placeholder="0" oninput="onKessanAmountInput(${i})" onfocus="onKessanAmountFocus(${i})" onblur="onKessanAmountBlur(${i})"></td>
   `;
   kessanTbody.appendChild(tr);
 }
@@ -636,6 +922,8 @@ function applyFormData(data) {
     if (el.type === 'radio' || el.type === 'checkbox') el.checked = val;
     else el.value = val;
   });
+  refreshAllAccountDisplays();
+  formatAllKessanAmounts();
   updateTotal();
 }
 
@@ -849,7 +1137,7 @@ async function generatePDF(withCopy) {
           sz -= 0.5;
           pitch = digitWidth(sz) + 1.5;
         }
-        const rightEdge = colX.x + colX.w - digitWidth(sz) / 8; // セルに収まるよう右へ寄せる
+        const rightEdge = colX.x + colX.w - digitWidth(sz) / 16; // セルに収まるよう右へ寄せる
         for (let d = 0; d < digits.length; d++) {
           const centerX = rightEdge - pitch * (d + 0.5);
           drawCenteredChar(digits[d], centerX, yTop, yBottom, sz);
@@ -910,7 +1198,7 @@ async function generatePDF(withCopy) {
           const [yTop, yBottom] = KESSAN_ROW_BOUNDS[i];
           drawInCell(gv(`kessan_cd_${i}`),   KESSAN_COL_X.cd.x + 3,     yTop, yBottom, KESSAN_COL_X.cd.w - 6);
           drawInCell(gv(`kessan_name_${i}`), KESSAN_COL_X.name.x + 3,   yTop, yBottom, KESSAN_COL_X.name.w - 6);
-          drawAmount(gv(`kessan_amount_${i}`), KESSAN_COL_X.amount, yTop, yBottom);
+          drawInCell(formatYenAmount(gv(`kessan_amount_${i}`)), KESSAN_COL_X.amount.x + 3, yTop, yBottom, KESSAN_COL_X.amount.w - 6, null, 'right');
         }
       }
     };
