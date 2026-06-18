@@ -187,7 +187,8 @@
     pointer-events: none; color: #99a !important; background: #edf0ed !important;
   }
   body:not(.acc-mode) [data-acc].btn-calendar,
-  body:not(.acc-mode) [data-acc].btn-add-page {
+  body:not(.acc-mode) [data-acc].btn-add-page,
+  body:not(.acc-mode) [data-acc].btn-secondary {
     pointer-events: none; opacity: 0.5;
   }
 </style>
@@ -283,8 +284,8 @@
     <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
       <span>▌ 仕訳明細（最大6行／枚）</span>
       <div style="display:flex; gap:8px;">
-        <button type="button" class="btn-add-page" data-acc onclick="openAccountManager()">＋ 科目追加</button>
-        <button type="button" class="btn-add-page" data-acc onclick="openExpenseCdManager()">＋ 経費CD追加</button>
+        <button type="button" class="btn-secondary" data-acc style="font-size:12px; padding:4px 10px;" onclick="openAccountManager()">📋 科目追加</button>
+        <button type="button" class="btn-secondary" data-acc style="font-size:12px; padding:4px 10px;" onclick="openExpenseCdManager()">📋 経費CD追加</button>
         <button type="button" id="remove-page-btn" class="btn-remove-page" onclick="removePage()" disabled>－ ページを削除</button>
         <button type="button" class="btn-add-page" onclick="addPage()">＋ ページを増やす</button>
       </div>
@@ -365,12 +366,9 @@
 <!-- 科目／経費CDリスト 追加・削除モーダル -->
 <div id="list-modal" class="modal-overlay" style="display:none">
   <div class="modal-box" style="width:380px;">
-    <h2 id="list-modal-title">リストの追加・削除</h2>
-    <div id="list-modal-add-fields" style="display:flex; gap:8px;"></div>
-    <div class="modal-btn-row" style="justify-content:flex-start;">
-      <button class="btn-login" onclick="listModalAdd()">＋ 追加</button>
-    </div>
-    <div id="list-modal-extra-list" style="max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;"></div>
+    <h2 id="list-modal-title">📋 リスト管理</h2>
+    <div id="list-modal-extra-list" style="max-height:300px; overflow-y:auto; margin-bottom:14px;"></div>
+    <div id="list-modal-add-fields" style="display:flex; gap:8px; margin-bottom:14px;"></div>
     <div class="modal-btn-row">
       <button class="btn-cancel" onclick="closeListModal()">閉じる</button>
     </div>
@@ -501,7 +499,9 @@ function escapeHtml(s) {
 
 const EXPENSE_CD_BASE = ['旅1','事2','交3','仮4','地7','厚9','光12','租13','雑18','材00','法8','保守21','飲交27'];
 let EXPENSE_CD_EXTRA = loadExtraList('transfer_slip_expense_cd_extra');
-const EXPENSE_CD_LIST = EXPENSE_CD_BASE.concat(EXPENSE_CD_EXTRA.filter(v => !EXPENSE_CD_BASE.includes(v)));
+let EXPENSE_CD_REMOVED = loadExtraList('transfer_slip_expense_cd_removed');
+const EXPENSE_CD_LIST = EXPENSE_CD_BASE.filter(v => !EXPENSE_CD_REMOVED.includes(v))
+  .concat(EXPENSE_CD_EXTRA.filter(v => !EXPENSE_CD_BASE.includes(v)));
 function buildExpenseCdOptions() {
   return '<option value=""></option>' + EXPENSE_CD_LIST.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
 }
@@ -518,7 +518,9 @@ const ACCOUNT_BASE = [
   '未成工事受入金\n4117-001','未成工事支出金\n1205-001','三井住友・五反田出張所\n1104-111','未払費用\n4116-001',
 ];
 let ACCOUNT_EXTRA = loadExtraList('transfer_slip_account_extra');
-const ACCOUNT_LIST = ACCOUNT_BASE.concat(ACCOUNT_EXTRA.filter(v => !ACCOUNT_BASE.includes(v)));
+let ACCOUNT_REMOVED = loadExtraList('transfer_slip_account_removed');
+const ACCOUNT_LIST = ACCOUNT_BASE.filter(v => !ACCOUNT_REMOVED.includes(v))
+  .concat(ACCOUNT_EXTRA.filter(v => !ACCOUNT_BASE.includes(v)));
 function buildAccountOptions() {
   return '<option value=""></option>' + ACCOUNT_LIST.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v.replace('\n','　'))}</option>`).join('');
 }
@@ -539,18 +541,20 @@ let listModalMode = null; // 'account' | 'expense'
 
 function openAccountManager() {
   listModalMode = 'account';
-  document.getElementById('list-modal-title').textContent = '科目の追加・削除';
+  document.getElementById('list-modal-title').textContent = '📋 科目管理';
   document.getElementById('list-modal-add-fields').innerHTML =
     '<input type="text" id="list-modal-input-name" placeholder="科目名" style="flex:1;">' +
-    '<input type="text" id="list-modal-input-code" placeholder="コード（例: 4118-999）" style="flex:1;">';
+    '<input type="text" id="list-modal-input-code" placeholder="コード（例: 4118-999）" style="flex:1;">' +
+    '<button class="btn-login" onclick="listModalAdd()">追加</button>';
   renderListModalExtras();
   document.getElementById('list-modal').style.display = 'flex';
 }
 function openExpenseCdManager() {
   listModalMode = 'expense';
-  document.getElementById('list-modal-title').textContent = '経費CDの追加・削除';
+  document.getElementById('list-modal-title').textContent = '📋 経費CD管理';
   document.getElementById('list-modal-add-fields').innerHTML =
-    '<input type="text" id="list-modal-input-code" placeholder="経費CD（例: 旅1）" style="flex:1;">';
+    '<input type="text" id="list-modal-input-code" placeholder="経費CD（例: 旅1）" style="flex:1;">' +
+    '<button class="btn-login" onclick="listModalAdd()">追加</button>';
   renderListModalExtras();
   document.getElementById('list-modal').style.display = 'flex';
 }
@@ -559,7 +563,8 @@ function openKessanManager() {
   document.getElementById('list-modal-title').textContent = '収支項目の追加・削除';
   document.getElementById('list-modal-add-fields').innerHTML =
     '<input type="text" id="list-modal-input-code" placeholder="収支CD（例: 111）" style="flex:1;">' +
-    '<input type="text" id="list-modal-input-name" placeholder="収支項目名" style="flex:1;">';
+    '<input type="text" id="list-modal-input-name" placeholder="収支項目名" style="flex:1;">' +
+    '<button class="btn-login" onclick="listModalAdd()">追加</button>';
   renderListModalExtras();
   document.getElementById('list-modal').style.display = 'flex';
 }
@@ -570,17 +575,17 @@ function closeListModal() {
 function renderListModalExtras() {
   const listEl = document.getElementById('list-modal-extra-list');
   let extras, labelFn;
-  if (listModalMode === 'account') { extras = ACCOUNT_EXTRA; labelFn = v => v.replace('\n','　'); }
+  if (listModalMode === 'account') { extras = ACCOUNT_LIST; labelFn = v => v.replace('\n','　'); }
   else if (listModalMode === 'kessan') { extras = KESSAN_EXTRA; labelFn = e => `${e.name}　${e.cd}`; }
-  else { extras = EXPENSE_CD_EXTRA; labelFn = v => v; }
+  else { extras = EXPENSE_CD_LIST; labelFn = v => v; }
   if (!extras.length) {
-    listEl.innerHTML = '<p style="font-size:12px; color:#8a958e; margin:0;">追加した項目はまだありません。</p>';
+    listEl.innerHTML = '<p style="color:#889; font-size:13px;">登録された項目はありません</p>';
     return;
   }
   listEl.innerHTML = extras.map((v, i) => `
-    <div style="display:flex; align-items:center; justify-content:space-between; border:1px solid #dce5df; border-radius:6px; padding:6px 10px; font-size:13px; gap:8px;">
-      <span>${escapeHtml(labelFn(v))}</span>
-      <button type="button" onclick="listModalRemove(${i})" style="border:none; background:#fbeaea; color:#c0392b; border-radius:5px; padding:3px 10px; font-size:12px; cursor:pointer; font-family:inherit; flex-shrink:0;">削除</button>
+    <div style="display:flex; align-items:center; gap:8px; padding:6px 2px; border-bottom:1px solid #eee;">
+      <span style="flex:1; font-size:14px;">${escapeHtml(labelFn(v))}</span>
+      <button class="btn-cancel" style="padding:4px 12px;" onclick="listModalRemove(${i})">削除</button>
     </div>`).join('');
 }
 function appendOptionToSelects(selector, value) {
@@ -645,12 +650,21 @@ function listModalAdd() {
 }
 function listModalRemove(i) {
   if (listModalMode === 'account') {
-    const v = ACCOUNT_EXTRA.splice(i, 1)[0];
-    const idx = ACCOUNT_LIST.indexOf(v);
-    if (idx >= 0) ACCOUNT_LIST.splice(idx, 1);
-    saveExtraList('transfer_slip_account_extra', ACCOUNT_EXTRA);
+    const v = ACCOUNT_LIST[i];
+    if (!confirm(`「${v.replace('\n','　')}」を削除しますか？`)) return;
+    ACCOUNT_LIST.splice(i, 1);
+    const extraIdx = ACCOUNT_EXTRA.indexOf(v);
+    if (extraIdx >= 0) {
+      ACCOUNT_EXTRA.splice(extraIdx, 1);
+      saveExtraList('transfer_slip_account_extra', ACCOUNT_EXTRA);
+    } else {
+      ACCOUNT_REMOVED.push(v);
+      saveExtraList('transfer_slip_account_removed', ACCOUNT_REMOVED);
+    }
     removeOptionFromSelects('select[id^="debit_account_"], select[id^="credit_account_"]', v);
   } else if (listModalMode === 'kessan') {
+    const label = `${KESSAN_EXTRA[i].name}　${KESSAN_EXTRA[i].cd}`;
+    if (!confirm(`「${label}」を削除しますか？`)) return;
     const e = KESSAN_EXTRA.splice(i, 1)[0];
     delete KESSAN_NAME_MAP[e.cd];
     delete KESSAN_CD_BY_NAME[e.name];
@@ -660,10 +674,17 @@ function listModalRemove(i) {
     removeOptionFromSelects('select[id^="kessan_name_"]', e.name);
     for (let r = 0; r < KESSAN_ROWS; r++) onKessanNameChange(r);
   } else {
-    const v = EXPENSE_CD_EXTRA.splice(i, 1)[0];
-    const idx = EXPENSE_CD_LIST.indexOf(v);
-    if (idx >= 0) EXPENSE_CD_LIST.splice(idx, 1);
-    saveExtraList('transfer_slip_expense_cd_extra', EXPENSE_CD_EXTRA);
+    const v = EXPENSE_CD_LIST[i];
+    if (!confirm(`「${v}」を削除しますか？`)) return;
+    EXPENSE_CD_LIST.splice(i, 1);
+    const extraIdx = EXPENSE_CD_EXTRA.indexOf(v);
+    if (extraIdx >= 0) {
+      EXPENSE_CD_EXTRA.splice(extraIdx, 1);
+      saveExtraList('transfer_slip_expense_cd_extra', EXPENSE_CD_EXTRA);
+    } else {
+      EXPENSE_CD_REMOVED.push(v);
+      saveExtraList('transfer_slip_expense_cd_removed', EXPENSE_CD_REMOVED);
+    }
     removeOptionFromSelects('select[id^="expense_cd_"]', v);
   }
   renderListModalExtras();
