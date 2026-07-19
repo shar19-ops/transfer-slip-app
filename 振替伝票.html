@@ -1592,11 +1592,23 @@ async function generatePDF(withCopy, mode = 'download') {
       }
     }
 
+    let invoiceMergeWarning = '';
+    if (attachedInvoicePdf) {
+      try {
+        const invoiceBytes = Uint8Array.from(atob(attachedInvoicePdf.dataUrl.split(',')[1]), c => c.charCodeAt(0));
+        const invoiceDoc = await PDFDocument.load(invoiceBytes);
+        const copiedPages = await a4Doc.copyPages(invoiceDoc, invoiceDoc.getPageIndices());
+        copiedPages.forEach(page => a4Doc.addPage(page));
+      } catch (e) {
+        invoiceMergeWarning = '（請求書PDFの結合に失敗しました: ' + e.message + '）';
+      }
+    }
+
     const outBytes = await a4Doc.save();
     if (mode === 'print') {
       await printViaCanvas(outBytes);
-      statusEl.textContent = '印刷ダイアログを開きました';
-      statusEl.className = 'status-ok';
+      statusEl.textContent = '印刷ダイアログを開きました' + invoiceMergeWarning;
+      statusEl.className = invoiceMergeWarning ? 'status-err' : 'status-ok';
     } else {
       const blob = new Blob([outBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -1606,8 +1618,8 @@ async function generatePDF(withCopy, mode = 'download') {
       a.download = `振替伝票_${dateStr}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      statusEl.textContent = 'PDF出力完了！';
-      statusEl.className = 'status-ok';
+      statusEl.textContent = 'PDF出力完了！' + invoiceMergeWarning;
+      statusEl.className = invoiceMergeWarning ? 'status-err' : 'status-ok';
     }
   } catch (err) {
     console.error(err);
