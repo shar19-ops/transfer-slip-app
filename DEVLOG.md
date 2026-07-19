@@ -55,3 +55,40 @@ GitHubリポジトリ: https://github.com/shar19-ops/transfer-slip-app
 - [ ] 科目・経費CD・収支項目の追加がlocalStorage限定でPC/ブラウザごとに独立している問題（社内共有不可、
       キャッシュクリアで消失）は未着手のまま。詳細はObsidianノート
       「振替伝票PJ - 科目･経費CD･収支項目データの保存先と今後の検討課題 (2026-06-30)」を参照
+
+## 2026-07-19: 請求書PDF添付機能の追加
+
+### 要件
+
+請求書のPDFファイルを添付できるようにしたい。保存の際もそのPDFを取り込んでJSONファイルに含め、
+JSONファイルを読み込むとPDFファイルも一緒に復元される仕組みにしたい、というユーザー要望。
+
+### 実装
+
+- `発行情報`カードの下に新規`▌ 添付ファイル（請求書PDF）`カードを追加
+  - `📎 請求書PDFを添付`ボタン（実体は非表示の`<input type="file" accept="application/pdf,.pdf">`）
+  - 添付中のファイル名表示、`👁 表示`（`window.open(dataUrl)`で新規タブ表示）、`🗑 削除`ボタン
+- `attachedInvoicePdf`（`{ name, dataUrl } | null`）というグローバル変数で保持。`FileReader.readAsDataURL()`
+  でPDFをbase64データURLに変換してメモリ上に保持する（サーバー送信なし、ブラウザ内完結）
+- `collectFormData()`に`__invoicePdf: attachedInvoicePdf`を追加 → `saveData()`が呼ぶJSONにそのまま
+  base64込みで埋め込まれる
+- `applyFormData()`で`data.__invoicePdf`から`attachedInvoicePdf`を復元しUIを更新 → `loadData()`で
+  JSONを読み込むとPDFも自動的に復元される
+- `clearForm()`でも`attachedInvoicePdf`をリセットするよう追加
+
+### 検証
+
+ローカルHTTPサーバー + Playwrightで、ダミーPDFの添付→UI表示確認→
+`collectFormData()`→JSON化→`removeInvoicePdf()`→`applyFormData(JSON.parse(...))`という一連の流れを
+`page.evaluate()`で直接実行し、往復後にファイル名・表示ボタンが正しく復元されることを確認
+（`window.showSaveFilePicker`/`showOpenFilePicker`はOSネイティブダイアログを伴うため自動化テスト対象外とし、
+その手前のデータ層のみ検証した）。「🗑 削除」ボタンのクリックでも表示が「（未添付）」に戻ることを確認。
+
+### 補足・今後の検討
+
+- PDFはbase64化されるため元ファイルサイズの約1.33倍になり、JSONファイルのサイズが増える。今回は
+  サイズ上限のバリデーションは未実装（要望になければ追加不要と判断）。
+- 添付したPDFを印刷／PDF出力（`generatePDF()`）側にマージする機能は今回のスコープ外（要望されていない）。
+  必要になれば`pdf-lib`（既にCDN読み込み済み）でページ結合する形が自然。
+
+コミット: `15e3e0f`
