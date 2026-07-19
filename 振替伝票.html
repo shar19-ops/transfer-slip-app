@@ -1213,7 +1213,11 @@ function removeInvoicePdf() {
 
 function viewInvoicePdf() {
   if (!attachedInvoicePdf) return;
-  const win = window.open(attachedInvoicePdf.dataUrl, '_blank');
+  // data: URLを直接window.openに渡すとブラウザが新規タブへの遷移をブロックし空タブになるため、
+  // blob: URLに変換してから開く。
+  const bytes = Uint8Array.from(atob(attachedInvoicePdf.dataUrl.split(',')[1]), c => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+  const win = window.open(url, '_blank');
   if (!win) alert('ポップアップがブロックされました。ブラウザの設定を確認してください。');
 }
 
