@@ -420,10 +420,25 @@
   <!-- ヘッダー情報 -->
   <div class="card">
     <div class="card-header">▌ ヘッダー情報</div>
-    <div class="field-grid field-grid-2">
-      <div class="field">
+    <div style="display:flex; flex-wrap:wrap; align-items:end; gap:16px 20px; padding:16px;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="margin-top:18px; font-size:13px; color:#4a5a4f;">日付</span>
+        <div class="field"><label>年</label><div data-acc><input type="number" id="date_year" style="width:72px;" placeholder="2025"></div></div>
+        <span class="sep">年</span>
+        <div class="field"><label>月</label><div data-acc><input type="number" id="date_month" style="width:60px;" min="1" max="12" placeholder="1"></div></div>
+        <span class="sep">月</span>
+        <div class="field"><label>日</label><div data-acc><input type="number" id="date_day" style="width:60px;" min="1" max="31" placeholder="1"></div></div>
+        <span class="sep">日</span>
+        <button type="button" class="btn-calendar" data-acc title="カレンダーから選択" onclick="openDatePicker('date_year','date_month','date_day','date_picker_main')">📅</button>
+        <input type="date" id="date_picker_main" class="date-picker-hidden" onchange="applyDatePicker(this,'date_year','date_month','date_day')">
+      </div>
+      <div class="field" style="flex:0 0 100px;">
+        <label>事業所CD</label>
+        <input type="text" id="office_code" placeholder="" readonly style="background:#eef3ee; color:#445; width:100%;">
+      </div>
+      <div class="field" style="flex:1 1 160px; min-width:140px;">
         <label>事業所名</label>
-        <select id="office_name" onchange="onOfficeChange()">
+        <select id="office_name" onchange="onOfficeChange()" style="width:100%;">
           <option value=""></option>
           <option value="本店">本店</option>
           <option value="東関東支店">東関東支店</option>
@@ -434,40 +449,22 @@
           <option value="北関東支店">北関東支店</option>
         </select>
       </div>
-      <div class="field">
-        <label>事業所CD</label>
-        <input type="text" id="office_code" placeholder="" readonly style="background:#eef3ee; color:#445;">
-      </div>
     </div>
 
-    <div class="date-row">
-      <span style="margin-top:18px; font-size:13px; color:#4a5a4f;">日付</span>
-      <div class="field"><label>年</label><div data-acc><input type="number" id="date_year" style="width:72px;" placeholder="2025"></div></div>
-      <span class="sep">年</span>
-      <div class="field"><label>月</label><div data-acc><input type="number" id="date_month" style="width:60px;" min="1" max="12" placeholder="1"></div></div>
-      <span class="sep">月</span>
-      <div class="field"><label>日</label><div data-acc><input type="number" id="date_day" style="width:60px;" min="1" max="31" placeholder="1"></div></div>
-      <span class="sep">日</span>
-      <button type="button" class="btn-calendar" data-acc title="カレンダーから選択" onclick="openDatePicker('date_year','date_month','date_day','date_picker_main')">📅</button>
-      <input type="date" id="date_picker_main" class="date-picker-hidden" onchange="applyDatePicker(this,'date_year','date_month','date_day')">
-    </div>
-
-    <div class="field-grid field-grid-2">
-      <div class="field">
+    <div style="display:flex; flex-wrap:wrap; align-items:start; gap:16px 20px; padding:0 16px 16px;">
+      <div class="field" style="flex:1 1 160px; min-width:140px;">
         <label>入金先・支出先CD</label>
         <div data-acc><input type="text" id="payee_cd" placeholder="" style="width:100%;"></div>
       </div>
-      <div class="field">
+      <div class="field" style="flex:1 1 160px; min-width:140px;">
         <label>注文・予約番号</label>
         <div data-acc><input type="text" id="order_no" placeholder="" style="width:100%;"></div>
       </div>
-    </div>
-    <div class="field-grid field-grid-2" style="padding-top:0;">
-      <div class="field">
+      <div class="field" style="flex:0 0 120px;">
         <label>伝票番号</label>
         <div data-acc><input type="text" id="voucher_no" placeholder="" style="width:100%;"></div>
       </div>
-      <div class="field">
+      <div class="field" style="flex:0 0 120px;">
         <label>種別</label>
         <div data-acc><input type="text" id="voucher_type" placeholder="" style="width:100%;"></div>
       </div>
@@ -528,22 +525,21 @@
   <!-- 発行情報 -->
   <div class="card">
     <div class="card-header">▌ 発行情報</div>
-    <div class="date-row">
-      <span style="margin-top:18px; font-size:13px; color:#4a5a4f;">発行日</span>
-      <div class="field"><label>年</label><input type="number" id="issue_year" style="width:72px;" placeholder="2025"></div>
-      <span class="sep">年</span>
-      <div class="field"><label>月</label><input type="number" id="issue_month" style="width:60px;" min="1" max="12" placeholder="1"></div>
-      <span class="sep">月</span>
-      <div class="field"><label>日</label><input type="number" id="issue_day" style="width:60px;" min="1" max="31" placeholder="1"></div>
-      <span class="sep">日</span>
-      <button type="button" class="btn-calendar" title="カレンダーから選択" onclick="openDatePicker('issue_year','issue_month','issue_day','date_picker_issue')">📅</button>
-      <input type="date" id="date_picker_issue" class="date-picker-hidden" onchange="applyDatePicker(this,'issue_year','issue_month','issue_day')">
-    </div>
-    <div class="field-grid" style="padding: 0 16px 16px;">
-      <div class="field">
-        <label>発行者（苗字 名前の間にスペース）</label>
-        <input type="text" id="issuer" placeholder="例：佐藤 太郎">
-        <span id="issuer-name-error" style="display:none; font-size:11px; color:#c0392b;">苗字と名前の間にスペースを入力してください</span>
+    <div style="display:flex; flex-wrap:wrap; align-items:end; gap:16px 20px; padding:16px;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="margin-top:18px; font-size:13px; color:#4a5a4f;">発行日</span>
+        <div class="field"><label>年</label><input type="number" id="issue_year" style="width:72px;" placeholder="2025"></div>
+        <span class="sep">年</span>
+        <div class="field"><label>月</label><input type="number" id="issue_month" style="width:60px;" min="1" max="12" placeholder="1"></div>
+        <span class="sep">月</span>
+        <div class="field"><label>日</label><input type="number" id="issue_day" style="width:60px;" min="1" max="31" placeholder="1"></div>
+        <span class="sep">日</span>
+        <button type="button" class="btn-calendar" title="カレンダーから選択" onclick="openDatePicker('issue_year','issue_month','issue_day','date_picker_issue')">📅</button>
+        <input type="date" id="date_picker_issue" class="date-picker-hidden" onchange="applyDatePicker(this,'issue_year','issue_month','issue_day')">
+      </div>
+      <div class="field" style="flex:1 1 160px; min-width:140px;">
+        <label>発行者（苗字）</label>
+        <input type="text" id="issuer" placeholder="例：佐藤" style="width:100%;">
       </div>
     </div>
     <div style="padding:0 16px 16px; display:flex; align-items:center; gap:12px; border-top:1px solid #dcefe1; margin:4px 16px 0; padding-top:14px;">
@@ -1372,12 +1368,6 @@ async function generatePDF(withCopy, mode = 'download') {
   statusEl.textContent = 'PDFを生成中...';
   statusEl.className = '';
 
-  if (getStampEnabled() && v('issuer') && !splitIssuerName(v('issuer'))) {
-    statusEl.textContent = '発行者名は苗字と名前の間にスペースを入れて入力してください（例：佐藤 太郎）';
-    statusEl.className = 'status-err';
-    return;
-  }
-
   try {
     const pdfBytes = Uint8Array.from(atob(TEMPLATE_B64), c => c.charCodeAt(0));
     const { PDFDocument } = PDFLib;
@@ -1548,10 +1538,9 @@ async function generatePDF(withCopy, mode = 'download') {
       }
 
       // ─ 作成者印（デート印、「作成」欄の下に焼き込み）─
-      const issuerParsed = splitIssuerName(v('issuer'));
-      if (getStampEnabled() && issuerParsed) {
+      if (getStampEnabled() && v('issuer')) {
         DateStamp.drawToPdf(a4Page, STAMP_CREATOR_CENTER.x, yOffset + STAMP_CREATOR_CENTER.y, {
-          ...stampNameOptions(issuerParsed.sei, v('issuer_title')),
+          ...stampNameOptions(v('issuer'), v('issuer_title')),
           date: getIssueDateForStamp(),
           dateFormat: 'yy-slash',
           color: getStampColor(),
@@ -1655,11 +1644,6 @@ function gv(id) { return (document.getElementById(id)?.value || '').trim(); }
 const stampCtx = document.getElementById('stamp-preview').getContext('2d');
 // 課長以下は黒、工事長以上は赤がデフォルト
 const TITLE_DEFAULT_COLOR = { '': 'black', '副長': 'black', '課長': 'black', '工事長': 'red', '支店長': 'red', '部長': 'red', '本部長': 'red', '取締役': 'red', '常務': 'red', '本店長': 'red' };
-function splitIssuerName(str) {
-  const parts = String(str || '').split(/[ 　]+/).filter(Boolean);
-  if (parts.length < 2) return null;
-  return { sei: parts[0], mei: parts.slice(1).join(' ') };
-}
 // 役職なし：苗字を上下に分割（例：佐藤→上「佐」下「藤」）／役職あり：上に苗字、下に役職
 // 役職が支店長の場合は例外：上段に事業所名（「支店」を除いた文字。例：東関東支店→東関東）、下段に「支店長」
 function stampNameOptions(sei, title) {
@@ -1693,15 +1677,11 @@ function onIssuerTitleChange() {
 function redrawStampPreview() {
   const canvas = stampCtx.canvas;
   stampCtx.clearRect(0, 0, canvas.width, canvas.height);
-  const errEl = document.getElementById('issuer-name-error');
-  if (!getStampEnabled()) { errEl.style.display = 'none'; return; }
+  if (!getStampEnabled()) return;
   const raw = v('issuer');
-  if (!raw) { errEl.style.display = 'none'; return; }
-  const parsed = splitIssuerName(raw);
-  if (!parsed) { errEl.style.display = 'block'; return; }
-  errEl.style.display = 'none';
+  if (!raw) return;
   DateStamp.draw(stampCtx, canvas.width / 2, canvas.height / 2, {
-    ...stampNameOptions(parsed.sei, v('issuer_title')),
+    ...stampNameOptions(raw, v('issuer_title')),
     date: getIssueDateForStamp(), dateFormat: 'yy-slash', color: getStampColor(), radius: 30
   });
 }
