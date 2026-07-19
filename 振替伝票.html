@@ -574,6 +574,18 @@
     </div>
   </div>
 
+  <!-- 添付ファイル -->
+  <div class="card">
+    <div class="card-header">▌ 添付ファイル（請求書PDF）</div>
+    <div style="padding:14px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <input type="file" id="invoice_pdf_input" accept="application/pdf,.pdf" style="display:none" onchange="onInvoicePdfSelected(this)">
+      <button type="button" class="btn-secondary" onclick="document.getElementById('invoice_pdf_input').click()">📎 請求書PDFを添付</button>
+      <span id="invoice-pdf-name" style="font-size:13px; color:#4a5a4f;">（未添付）</span>
+      <button type="button" class="btn-secondary" id="invoice-pdf-view-btn" style="display:none" onclick="viewInvoicePdf()">👁 表示</button>
+      <button type="button" class="btn-secondary" id="invoice-pdf-remove-btn" style="display:none" onclick="removeInvoicePdf()">🗑 削除</button>
+    </div>
+  </div>
+
   <div id="status"></div>
 
   <div class="btn-bar">
@@ -1169,12 +1181,54 @@ function clearForm() {
   if (!confirm('入力内容をすべてクリアしますか？')) return;
   setPageCount(1);
   document.querySelectorAll('input, select, textarea').forEach(el => { el.value = ''; });
+  attachedInvoicePdf = null;
+  updateInvoicePdfUI();
   updateTotal();
+}
+
+// ─── 請求書PDF添付 ──────────────────────────────
+let attachedInvoicePdf = null; // { name, dataUrl } | null
+
+function onInvoicePdfSelected(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+    alert('PDFファイルを選択してください。');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    attachedInvoicePdf = { name: file.name, dataUrl: reader.result };
+    updateInvoicePdfUI();
+  };
+  reader.onerror = () => alert('PDFの読み込みに失敗しました。');
+  reader.readAsDataURL(file);
+}
+
+function removeInvoicePdf() {
+  attachedInvoicePdf = null;
+  updateInvoicePdfUI();
+}
+
+function viewInvoicePdf() {
+  if (!attachedInvoicePdf) return;
+  const win = window.open(attachedInvoicePdf.dataUrl, '_blank');
+  if (!win) alert('ポップアップがブロックされました。ブラウザの設定を確認してください。');
+}
+
+function updateInvoicePdfUI() {
+  const nameEl = document.getElementById('invoice-pdf-name');
+  const viewBtn = document.getElementById('invoice-pdf-view-btn');
+  const removeBtn = document.getElementById('invoice-pdf-remove-btn');
+  nameEl.textContent = attachedInvoicePdf ? attachedInvoicePdf.name : '（未添付）';
+  viewBtn.style.display = attachedInvoicePdf ? '' : 'none';
+  removeBtn.style.display = attachedInvoicePdf ? '' : 'none';
 }
 
 // ─── 入力データの保存・読み込み ────────────────────────────
 function collectFormData() {
-  const data = { __pageCount: pageCount };
+  const data = { __pageCount: pageCount, __invoicePdf: attachedInvoicePdf };
   document.querySelectorAll('.container input, .container select, .container textarea').forEach(el => {
     if (!el.id) return;
     data[el.id] = (el.type === 'radio' || el.type === 'checkbox') ? el.checked : el.value;
@@ -1184,6 +1238,8 @@ function collectFormData() {
 
 function applyFormData(data) {
   setPageCount(data.__pageCount || 1);
+  attachedInvoicePdf = data.__invoicePdf || null;
+  updateInvoicePdfUI();
   Object.entries(data).forEach(([id, val]) => {
     const el = document.getElementById(id);
     if (!el) return;
