@@ -1,0 +1,487 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>支払伝票・振替伝票 かんたんマニュアル</title>
+<style>
+  :root {
+    --paper: #f4f5f0;
+    --surface: #ffffff;
+    --surface-soft: #eef0ea;
+    --ink: #1e2523;
+    --ink-soft: #5c6863;
+    --ink-faint: #8b948d;
+    --line: #d9dcd2;
+    --line-strong: #c3c8bc;
+    --shuiro: #b3432d;
+    --shuiro-soft: #f2ded8;
+    --app-blue: #1c5c96;
+    --app-blue-soft: #dde8f2;
+    --app-green: #1f7a4d;
+    --app-green-soft: #dcefe3;
+    --warn: #b3432d;
+    --warn-soft: #f7e6e2;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #1b1e1c;
+      --surface: #232725;
+      --surface-soft: #2a2e2b;
+      --ink: #e9ebe6;
+      --ink-soft: #a3ada5;
+      --ink-faint: #6f776f;
+      --line: #383d39;
+      --line-strong: #454b45;
+      --shuiro: #e0785f;
+      --shuiro-soft: #3a2620;
+      --app-blue: #6fa8dc;
+      --app-blue-soft: #1e2c38;
+      --app-green: #6dc99a;
+      --app-green-soft: #1c2e24;
+      --warn: #e0785f;
+      --warn-soft: #3a2620;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #1b1e1c; --surface: #232725; --surface-soft: #2a2e2b;
+    --ink: #e9ebe6; --ink-soft: #a3ada5; --ink-faint: #6f776f;
+    --line: #383d39; --line-strong: #454b45;
+    --shuiro: #e0785f; --shuiro-soft: #3a2620;
+    --app-blue: #6fa8dc; --app-blue-soft: #1e2c38;
+    --app-green: #6dc99a; --app-green-soft: #1c2e24;
+    --warn: #e0785f; --warn-soft: #3a2620;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --paper: #f4f5f0; --surface: #ffffff; --surface-soft: #eef0ea;
+    --ink: #1e2523; --ink-soft: #5c6863; --ink-faint: #8b948d;
+    --line: #d9dcd2; --line-strong: #c3c8bc;
+    --shuiro: #b3432d; --shuiro-soft: #f2ded8;
+    --app-blue: #1c5c96; --app-blue-soft: #dde8f2;
+    --app-green: #1f7a4d; --app-green-soft: #dcefe3;
+    --warn: #b3432d; --warn-soft: #f7e6e2;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", "BIZ UDPGothic", "Noto Sans JP", system-ui, sans-serif;
+    line-height: 1.85;
+    font-size: 15.5px;
+  }
+  h1, h2, h3 { text-wrap: balance; font-weight: 800; letter-spacing: 0.01em; }
+  code, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  a { color: inherit; }
+
+  /* ─── ページ全体レイアウト ─────────────────────────── */
+  .shell {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    max-width: 1180px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+  }
+
+  /* ─── 目次（左タブ） ───────────────────────────────── */
+  .toc {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 28px 18px 28px 24px;
+    border-right: 1px solid var(--line);
+  }
+  @media (max-width: 860px) {
+    .toc { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line); padding: 20px; }
+  }
+  .toc-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 14px;
+  }
+  .toc-list { list-style: none; margin: 0 0 28px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .toc-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--ink);
+    font-size: 13.5px;
+    font-weight: 600;
+    transition: background 0.12s;
+  }
+  .toc-item:hover { background: var(--surface-soft); }
+  .toc-item:focus-visible { outline: 2px solid var(--shuiro); outline-offset: 2px; }
+  .toc-tab {
+    width: 5px;
+    align-self: stretch;
+    border-radius: 3px;
+    flex: none;
+  }
+  .toc-item .toc-sub { display: block; font-weight: 400; color: var(--ink-soft); font-size: 11.5px; margin-top: 2px; }
+  .toc-note {
+    font-size: 12px;
+    color: var(--ink-soft);
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+    line-height: 1.7;
+  }
+
+  /* ─── 本文 ─────────────────────────────────────────── */
+  .content { padding: 40px 44px 100px; min-width: 0; }
+  @media (max-width: 860px) { .content { padding: 28px 20px 80px; } }
+
+  .cover {
+    margin-bottom: 44px;
+  }
+  .cover .eyebrow {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--shuiro);
+    margin: 0 0 10px;
+  }
+  .cover h1 { font-size: 30px; margin: 0 0 12px; }
+  .cover p { color: var(--ink-soft); max-width: 62ch; margin: 0; }
+  .cover-meta {
+    display: flex; gap: 20px; flex-wrap: wrap;
+    margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--ink-faint);
+  }
+
+  .common-box {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 26px;
+    margin-bottom: 48px;
+  }
+  .common-box h2 { font-size: 15px; margin: 0 0 14px; }
+  .common-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 14px 24px;
+  }
+  .common-grid dt { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .common-grid dd { margin: 0; color: var(--ink-soft); font-size: 13px; }
+
+  section.manual {
+    scroll-margin-top: 24px;
+    padding-top: 6px;
+    margin-bottom: 64px;
+  }
+  .manual-head {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    border-top: 3px solid var(--tag);
+    padding-top: 18px;
+    margin-bottom: 6px;
+  }
+  .manual-head h2 { font-size: 24px; margin: 0; }
+  .manual-tag {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--tag); background: var(--tag-soft);
+    padding: 3px 9px; border-radius: 999px;
+  }
+  .manual-purpose { color: var(--ink-soft); margin: 6px 0 26px; max-width: 68ch; }
+  .manual-url {
+    display: inline-block; margin: 0 0 26px;
+    font-size: 12.5px; padding: 7px 12px;
+    background: var(--surface-soft); border: 1px solid var(--line); border-radius: 6px;
+    word-break: break-all;
+  }
+
+  h3.step-title {
+    font-size: 15.5px;
+    display: flex; align-items: center; gap: 10px;
+    margin: 34px 0 12px;
+  }
+  h3.step-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tag); flex: none; }
+
+  table.fields {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    margin-bottom: 4px;
+  }
+  table.fields th, table.fields td {
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  table.fields th {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--ink-faint);
+    border-bottom: 1px solid var(--line-strong);
+  }
+  table.fields td:first-child { font-weight: 700; white-space: nowrap; }
+  .wrap-table { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 22px; }
+  .wrap-table table.fields { margin-bottom: 0; }
+  .wrap-table table.fields th:first-child, .wrap-table table.fields td:first-child { padding-left: 14px; }
+
+  ul.steps { margin: 0 0 22px; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  ul.steps li { padding-left: 22px; position: relative; font-size: 14px; }
+  ul.steps li::before {
+    content: "―"; position: absolute; left: 0; color: var(--tag); font-weight: 700;
+  }
+
+  .note, .warn {
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    margin: 0 0 22px;
+    line-height: 1.75;
+  }
+  .note { background: var(--surface-soft); border: 1px solid var(--line); color: var(--ink-soft); }
+  .warn { background: var(--warn-soft); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); color: var(--ink); }
+  .warn strong { color: var(--warn); }
+
+  .diff-box {
+    border: 1px dashed var(--line-strong);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 0 0 26px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .diff-box strong { color: var(--ink); }
+
+  footer.manual-foot {
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+    font-size: 12px;
+    color: var(--ink-faint);
+    text-align: center;
+  }
+
+  @media print {
+    .toc { display: none; }
+    .shell { display: block; }
+    .content { padding: 0; }
+    section.manual { break-before: page; }
+    .common-box, table.fields, .wrap-table { break-inside: avoid; }
+  }
+</style>
+
+<div class="shell">
+  <nav class="toc" aria-label="目次">
+    <p class="toc-title">目次</p>
+    <ul class="toc-list">
+      <li><a class="toc-item" href="#top" style="padding-left:10px;"><span class="toc-sub" style="margin:0;">はじめに・共通操作</span></a></li>
+      <li>
+        <a class="toc-item" href="#general">
+          <span class="toc-tab" style="background:var(--app-blue);"></span>
+          <span>一般管理費支払伝票<span class="toc-sub">v3 ・ 一般管理費の支払申請</span></span>
+        </a>
+      </li>
+      <li>
+        <a class="toc-item" href="#construction">
+          <span class="toc-tab" style="background:var(--app-blue);"></span>
+          <span>支払伝票<span class="toc-sub">未成工事用 ・ 工事案件の支払申請</span></span>
+        </a>
+      </li>
+      <li>
+        <a class="toc-item" href="#transfer">
+          <span class="toc-tab" style="background:var(--app-green);"></span>
+          <span>振替伝票<span class="toc-sub">部門・科目間の振替仕訳</span></span>
+        </a>
+      </li>
+    </ul>
+    <p class="toc-note">この3つの伝票はいずれも1枚のWebページ（アプリ）として動作します。入力データはサーバーに送信されず、この端末内だけで処理されます。</p>
+  </nav>
+
+  <main class="content" id="top">
+    <div class="cover">
+      <p class="eyebrow">Internal Use / 社内マニュアル</p>
+      <h1>支払伝票・振替伝票 かんたんマニュアル</h1>
+      <p>3種類の伝票アプリの入力手順をまとめた簡易マニュアルです。左の目次から該当する伝票を選ぶと、その説明にジャンプします。まずどの伝票を使えばよいか迷ったときは、下の一覧を確認してください。</p>
+      <div class="cover-meta">
+        <span>最終更新: 2026-07-20</span>
+        <span>対象: 一般管理費支払伝票 v3 / 支払伝票（未成工事用）/ 振替伝票</span>
+      </div>
+    </div>
+
+    <div class="common-box">
+      <h2>どの伝票を使う？</h2>
+      <dl class="common-grid">
+        <div><dt>本店・支店の一般管理費を支払う</dt><dd>→ 一般管理費支払伝票（v3）</dd></div>
+        <div><dt>未成工事（施工中の現場）の支払いをする</dt><dd>→ 支払伝票（未成工事用）</dd></div>
+        <div><dt>部門間・勘定科目間で金額を振り替える</dt><dd>→ 振替伝票</dd></div>
+      </dl>
+    </div>
+
+    <div class="common-box">
+      <h2>3伝票共通の操作</h2>
+      <dl class="common-grid">
+        <dt style="grid-column:1/-1; margin-top:4px;">🔒 経理担当者ロック</dt>
+        <dd style="grid-column:1/-1; margin-bottom:10px;">画面右上の「経理担当者」ボタンからパスワードを入力すると、グレー表示になっている項目（収支CD・科目・経費CDなど経理が管理する項目）が編集できるようになります。パスワードを持たない場合、これらの項目は入力済みの内容がそのまま使われます。</dd>
+
+        <dt style="grid-column:1/-1;">💾 保存 / 📂 読み込む</dt>
+        <dd style="grid-column:1/-1; margin-bottom:10px;">「保存」で入力中の内容をファイル（.json）として端末に保存できます。添付した領収書・請求書PDFも一緒に保存されます。あとで「読み込む」ボタンから同じファイルを開くと、続きから入力を再開できます。</dd>
+
+        <dt style="grid-column:1/-1;">🖨 印刷 / PDF出力</dt>
+        <dd style="grid-column:1/-1;">入力内容をもとに帳票を組み立て、ブラウザの印刷ダイアログを開きます。そのまま印刷するか、印刷ダイアログの出力先（送信先）で「PDFに保存」を選ぶとPDFファイルとして保存できます。</dd>
+      </dl>
+    </div>
+
+    <!-- ══════════════════════════ 一般管理費支払伝票 ══════════════════════════ -->
+    <section class="manual" id="general" style="--tag:var(--app-blue); --tag-soft:var(--app-blue-soft);">
+      <div class="manual-head">
+        <h2>一般管理費支払伝票</h2>
+        <span class="manual-tag">v3</span>
+      </div>
+      <p class="manual-purpose">本店・各支店の一般管理費（消耗品費、交際費、旅費交通費など）を支払うための申請伝票です。領収書をその場で撮影して添付できます。</p>
+      <a class="manual-url mono" href="https://shar19-ops.github.io/shiharai-denpyo/支払伝票【一般管理費】.html" target="_blank" rel="noopener">https://shar19-ops.github.io/shiharai-denpyo/支払伝票【一般管理費】.html</a>
+
+      <h3 class="step-title"><span class="dot"></span>① ヘッダー情報</h3>
+      <p>伝票の基本情報です。日付・伝票番号は原則そのまま、事業所名を選択すると事業所CDが自動で入ります。</p>
+      <div class="wrap-table"><table class="fields">
+        <tr><th>項目</th><th>入力内容</th></tr>
+        <tr><td>日付</td><td>伝票の日付（年・月・日）。📅ボタンでカレンダーからも選択可</td></tr>
+        <tr><td>伝票番号</td><td>経理担当者が管理する項目（通常は入力不要）</td></tr>
+        <tr><td>事業所CD</td><td>事業所名を選ぶと自動表示（直接入力不可）</td></tr>
+        <tr><td>事業所名</td><td>プルダウンから所属事業所を選択</td></tr>
+      </table></div>
+
+      <h3 class="step-title"><span class="dot"></span>② 明細（最大7行）</h3>
+      <p>支払内容を行ごとに入力します。1件の伝票につき最大7件まで。</p>
+      <div class="wrap-table"><table class="fields">
+        <tr><th>列</th><th>内容</th></tr>
+        <tr><td>借方科目</td><td>プルダウンから勘定科目を選択（コードも同時に表示）</td></tr>
+        <tr><td>税</td><td>課込・課抜・非課税・不課税・免税・免抜から選択</td></tr>
+        <tr><td>摘要 / 支払先</td><td>自由入力</td></tr>
+        <tr><td>工番 / 区分</td><td>半角英数字に自動変換されます</td></tr>
+        <tr><td>経費CD / 摘要CD</td><td>経理担当者が管理する項目</td></tr>
+        <tr><td>金額（円）</td><td>入力すると自動で合計が計算されます</td></tr>
+      </table></div>
+
+      <h3 class="step-title"><span class="dot"></span>③ 領収書（任意）<span class="manual-tag" style="margin-left:4px;">β版</span></h3>
+      <ul class="steps">
+        <li>「📷 カメラで撮影」または「🖼 ファイルを選択」で領収書画像を取り込みます</li>
+        <li>暗い色の下敷き（黒いクリアファイルなど）の上に置いて撮影すると、自動トリミングの精度が上がります</li>
+        <li>自動トリミングがうまくいかない場合は「✂ 手動トリミング」で四隅をドラッグして範囲を指定できます（左右90°回転も可能）</li>
+        <li>複数枚まとめて添付できます。不要な1枚だけを削除することも可能です</li>
+      </ul>
+      <div class="warn"><strong>注意：</strong>領収書の原本は、PDF添付とは別に後日、経理担当へ提出してください。</div>
+
+      <h3 class="step-title"><span class="dot"></span>④ 発行情報・デート印</h3>
+      <div class="wrap-table"><table class="fields">
+        <tr><th>項目</th><th>入力内容</th></tr>
+        <tr><td>発行日</td><td>未入力の場合、開いた時点の今日の日付が自動で入ります</td></tr>
+        <tr><td>部 / 課</td><td>自由入力</td></tr>
+        <tr><td>収支CD / 収支項目名</td><td>経理担当者が管理する項目</td></tr>
+        <tr><td>社員CD</td><td>7桁の数字</td></tr>
+        <tr><td>発行者</td><td><strong>苗字と名前の間に半角または全角スペース</strong>を入れて入力（例：佐藤 太郎）</td></tr>
+      </table></div>
+      <p>発行者を入力すると、左のプレビューに「デート印」（苗字＋発行日の丸印）が自動で描画されます。役職を選ぶと苗字の下に役職名が入り、支店長の場合は特別に事業所名が上段に表示されます。朱（赤）・黒の色も選べます。</p>
+
+      <footer class="manual-foot">一般管理費支払伝票（v3）はこれで終わりです。上の共通操作（保存・印刷/PDF出力）を参照してください。</footer>
+    </section>
+
+    <!-- ══════════════════════════ 支払伝票（未成工事用） ══════════════════════════ -->
+    <section class="manual" id="construction" style="--tag:var(--app-blue); --tag-soft:var(--app-blue-soft);">
+      <div class="manual-head">
+        <h2>支払伝票（未成工事用）</h2>
+      </div>
+      <p class="manual-purpose">施工中の工事案件（未成工事）にかかる支払いを申請するための伝票です。基本構成は一般管理費支払伝票と共通ですが、工番・件名の入力欄がある点が異なります。</p>
+
+      <div class="diff-box">
+        <strong>一般管理費支払伝票との主な違い</strong><br>
+        ・収支CD／収支項目名の代わりに「工番・件名」欄を使用<br>
+        ・明細は最大9行まで入力可能（借方科目の列はなし）<br>
+        ・印刷/PDF出力の前に「控え」を付けるかどうかを選ぶ画面が出ます
+      </div>
+
+      <h3 class="step-title"><span class="dot"></span>① ヘッダー情報</h3>
+      <p>日付・伝票番号・事業所CD・事業所名は一般管理費支払伝票と同じです。</p>
+
+      <h3 class="step-title"><span class="dot"></span>② 工番・件名</h3>
+      <div class="wrap-table"><table class="fields">
+        <tr><th>項目</th><th>入力内容</th></tr>
+        <tr><td>工番</td><td>例：25-0123</td></tr>
+        <tr><td>件名</td><td>例：○○ビル電気工事</td></tr>
+      </table></div>
+
+      <h3 class="step-title"><span class="dot"></span>③ 明細（最大9行）</h3>
+      <p>税・摘要・支払先・区分・経費CD・摘要CD・金額を行ごとに入力します（内容は一般管理費支払伝票の明細と同様）。</p>
+
+      <h3 class="step-title"><span class="dot"></span>④ 領収書（任意）<span class="manual-tag" style="margin-left:4px;">β版</span></h3>
+      <p>撮影・自動トリミング・手動トリミング・複数枚添付は一般管理費支払伝票と同じ操作です。3枚目以降の領収書はA5サイズの用紙にまとめて出力されます。</p>
+
+      <h3 class="step-title"><span class="dot"></span>⑤ 発行情報・デート印</h3>
+      <p>発行日・部・課・社員CD・発行者（苗字 名前をスペース区切りで入力）・デート印の扱いは一般管理費支払伝票と同じです。</p>
+
+      <h3 class="step-title"><span class="dot"></span>⑥ 印刷/PDF出力時の「控え」</h3>
+      <p>「🖨 印刷 / PDF出力」を押すと、控えを付けるかどうかを確認するダイアログが出ます。</p>
+      <div class="wrap-table"><table class="fields">
+        <tr><th>選択肢</th><th>出力内容</th></tr>
+        <tr><td>控え なし</td><td>A5サイズの伝票をA4用紙に1面だけ出力</td></tr>
+        <tr><td>控え あり</td><td>同じ内容をA4用紙の上下2面（本紙＋控え）に出力</td></tr>
+      </table></div>
+
+      <footer class="manual-foot">支払伝票（未成工事用）はこれで終わりです。上の共通操作（保存・印刷/PDF出力）を参照してください。</footer>
+    </section>
+
+    <!-- ══════════════════════════ 振替伝票 ══════════════════════════ -->
+    <section class="manual" id="transfer" style="--tag:var(--app-green); --tag-soft:var(--app-green-soft);">
+      <div class="manual-head">
+        <h2>振替伝票</h2>
+      </div>
+      <p class="manual-purpose">部門間・勘定科目間で金額を振り替えるための仕訳伝票です。借方・貸方を1行で入力し、収支CDへの配分や請求書PDFの添付にも対応しています。</p>
+
+      <h3 class="step-title"><span class="dot"></span>① ヘッダー情報</h3>
+      <div class="wrap-table"><table class="fields">
+        <tr><th>項目</th><th>入力内容</th></tr>
+        <tr><td>日付</td><td>伝票の日付</td></tr>
+        <tr><td>事業所CD / 事業所名</td><td>事業所名を選ぶとCDが自動表示</td></tr>
+        <tr><td>入金先・支出先CD / 注文・予約番号</td><td>自由入力</td></tr>
+        <tr><td>伝票番号 / 種別</td><td>経理担当者が管理する項目</td></tr>
+      </table></div>
+
+      <h3 class="step-title"><span class="dot"></span>② 仕訳明細（最大6行／枚）</h3>
+      <p>1行の中に「借方科目・税・金額」と「貸方科目・税・金額」の両方を入力する、仕訳形式の明細です。工番／区分、経費CD／摘要CDも1行ごとに指定できます。</p>
+      <ul class="steps">
+        <li>1枚で足りない場合は「＋ページを増やす」で明細を追加（不要になったら「－ページを削除」）</li>
+        <li>各ページ・全体の借方合計と貸方合計が自動計算され、最終ページに累計が表示されます</li>
+      </ul>
+      <div class="warn"><strong>借方＝貸方チェック：</strong>「借方合計と貸方合計が一致していません。このまま出力できますが、内容を確認してください。」という警告が出た場合は、出力前に金額の入力ミスがないか見直してください（一致していなくても出力自体は可能です）。</div>
+
+      <h3 class="step-title"><span class="dot"></span>③ 収支CD（最大4行）</h3>
+      <p>この振替がどの収支項目に該当するかを、金額付きで最大4件まで配分入力できます。「＋収支項目追加」で行を増やせます。</p>
+
+      <h3 class="step-title"><span class="dot"></span>④ 発行情報・作成者印</h3>
+      <div class="wrap-table"><table class="fields">
+        <tr><th>項目</th><th>入力内容</th></tr>
+        <tr><td>発行日</td><td>未入力の場合、開いた時点の今日の日付が自動で入ります</td></tr>
+        <tr><td>発行者</td><td><strong>苗字のみ</strong>を入力（例：佐藤）</td></tr>
+      </table></div>
+      <div class="note">他の2伝票と異なり、振替伝票の発行者は苗字だけで入力します（名前を分けて入力する必要はありません）。入力するとその場で作成者印（デート印）のプレビューに反映されます。</div>
+
+      <h3 class="step-title"><span class="dot"></span>⑤ 添付ファイル（請求書PDF）</h3>
+      <p>「請求書PDFを添付」から関連する請求書PDFを1件添付できます。添付したPDFは伝票PDFの末尾に結合されて出力されます。「保存」でファイル保存する際も添付PDFごと保存されます。</p>
+
+      <h3 class="step-title"><span class="dot"></span>⑥ 印刷/PDF出力時の「控え」</h3>
+      <p>支払伝票（未成工事用）と同様に、出力前に「控えなし（A5を1面）」「控えあり（同じ内容をA4に上下2面）」を選択します。</p>
+
+      <footer class="manual-foot">振替伝票はこれで終わりです。上の共通操作（保存・印刷/PDF出力）を参照してください。</footer>
+    </section>
+  </main>
+</div>
