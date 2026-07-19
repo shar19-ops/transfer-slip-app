@@ -369,11 +369,6 @@
   body:not(.acc-mode) table.detail td[data-acc]::after {
     content: "";
     position: absolute; inset: 0;
-    background: repeating-linear-gradient(
-      45deg,
-      rgba(60,90,70,0.40) 0px, rgba(60,90,70,0.40) 2px,
-      rgba(200,220,205,0.55) 2px, rgba(200,220,205,0.55) 9px
-    );
     border-radius: 4px;
     pointer-events: none; z-index: 2;
   }
@@ -598,8 +593,7 @@
     <button class="btn-secondary" onclick="loadData()">📂 読み込む</button>
     <button class="btn-secondary" onclick="saveData()">💾 保存</button>
     <button class="btn-secondary" onclick="clearForm()">クリア</button>
-    <button class="btn-secondary" onclick="printPDF()">🖨 印刷</button>
-    <button class="btn-primary" onclick="openExportModal()">📄 PDF 出力</button>
+    <button class="btn-primary" onclick="printPDF()">🖨 印刷 / PDF出力</button>
   </div>
 
 </div><!-- /container -->
@@ -1150,6 +1144,20 @@ for (let i = 0; i < KESSAN_ROWS; i++) {
   kessanTbody.appendChild(tr);
 }
 
+// ─── 発行日デフォルト値（未入力時は今日の日付） ────────────────
+function setDefaultIssueDate() {
+  const y = document.getElementById('issue_year');
+  const m = document.getElementById('issue_month');
+  const d = document.getElementById('issue_day');
+  if (!y.value && !m.value && !d.value) {
+    const now = new Date();
+    y.value = now.getFullYear();
+    m.value = now.getMonth() + 1;
+    d.value = now.getDate();
+  }
+}
+setDefaultIssueDate();
+
 // ─── 合計計算 ────────────────────────────────────────────────
 // 複数ページに分かれている場合、各ページの合計は最終ページにのみ
 // それまでの全ページを含む累計を表示し、それ以外のページは空欄にする。
@@ -1189,6 +1197,7 @@ function clearForm() {
   document.querySelectorAll('input, select, textarea').forEach(el => { el.value = ''; });
   attachedInvoicePdf = null;
   updateInvoicePdfUI();
+  setDefaultIssueDate();
   updateTotal();
 }
 
