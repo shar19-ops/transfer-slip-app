@@ -591,6 +591,7 @@
   <div class="modal-box">
     <h2 id="export-modal-title">📄 PDF出力</h2>
     <p>控え（同じ内容をA4に上下2面で出力）を付けますか？</p>
+    <p id="export-mismatch-warn" style="display:none; color:#c0392b; font-weight:700; background:#fdf0f0; border:1px solid #e0a0a0; border-radius:6px; padding:8px 12px; margin:8px 0 0;">⚠ 借方合計と貸方合計が一致していません。このまま出力できますが、内容を確認してください。</p>
     <div style="display:flex; flex-direction:column; gap:10px;">
       <label style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
         <input type="radio" name="export-copy" id="export-copy-no" value="no" checked style="width:auto;">
@@ -1249,6 +1250,8 @@ function openExportModal(mode) {
   document.getElementById('export-modal-title').textContent = pendingExportMode === 'print' ? '🖨 印刷' : '📄 PDF出力';
   document.getElementById('export-modal-confirm-btn').textContent = pendingExportMode === 'print' ? '印刷' : 'PDF生成';
   document.getElementById('export-copy-no').checked = true;
+  const { debitSum, creditSum } = updateTotal();
+  document.getElementById('export-mismatch-warn').style.display = debitSum !== creditSum ? '' : 'none';
   document.getElementById('export-modal').style.display = 'flex';
 }
 function closeExportModal() {
