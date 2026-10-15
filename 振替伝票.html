@@ -1591,12 +1591,23 @@ async function generatePDF(withCopy, mode = 'download') {
       }
     };
 
+    // テンプレートは用紙端ぎりぎり(約4mm)まで印字があり、プリンタの印刷不可領域で上下端(事業所名等)が欠けるため、
+    // 伝票を縮小して左右中央に配置し、上の伝票は用紙上端から・下の伝票は用紙下端から余白を取る（切取り線とは重ならない）
+    const SLIP_SCALE = 0.95;
+    const SLIP_MARGIN = 17; // pt（約6mm）
+    const slipTx = (A4_W - A5_W * SLIP_SCALE) / 2;
+    const slipTy = (yOffset) => yOffset > 0 ? A4_H - SLIP_MARGIN - A4_H * SLIP_SCALE : SLIP_MARGIN;
     const slots = withCopy ? [A4_H - A5_H, 0] : [A4_H - A5_H];
     for (let p = 0; p < pageCount; p++) {
       const a4Page = a4Doc.addPage([A4_W, A4_H]);
       for (const yOffset of slots) {
+        a4Page.pushOperators(
+          PDFLib.pushGraphicsState(),
+          PDFLib.concatTransformationMatrix(SLIP_SCALE, 0, 0, SLIP_SCALE, slipTx, slipTy(yOffset))
+        );
         a4Page.drawPage(templatePage, { x: 0, y: yOffset, width: A5_W, height: A5_H });
         drawAt(a4Page, yOffset, p);
+        a4Page.pushOperators(PDFLib.popGraphicsState());
       }
     }
 
