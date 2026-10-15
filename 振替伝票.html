@@ -1593,10 +1593,12 @@ async function generatePDF(withCopy, mode = 'download') {
 
     // テンプレートは用紙端ぎりぎり(約4mm)まで印字があり、プリンタの印刷不可領域で上下端(事業所名等)が欠けるため、
     // 伝票を縮小して左右中央に配置し、上の伝票は用紙上端から・下の伝票は用紙下端から余白を取る（切取り線とは重ならない）
-    const SLIP_SCALE = 0.95;
-    const SLIP_MARGIN = 17; // pt（約6mm）
+    // 下端はプリンタの印刷不可領域が大きいことが多いため、下の伝票は切取り線側の空きを詰めて下端の余白を広めに取る
+    const SLIP_SCALE = 0.97;
+    const SLIP_TOP_MARGIN = 9;     // pt（約3.2mm）上の伝票の上端余白
+    const SLIP_BOTTOM_MARGIN = 12; // pt（約4.2mm）下の伝票の下端余白
     const slipTx = (A4_W - A5_W * SLIP_SCALE) / 2;
-    const slipTy = (yOffset) => yOffset > 0 ? A4_H - SLIP_MARGIN - A4_H * SLIP_SCALE : SLIP_MARGIN;
+    const slipTy = (yOffset) => yOffset > 0 ? A4_H - SLIP_TOP_MARGIN - A4_H * SLIP_SCALE : SLIP_BOTTOM_MARGIN;
     const slots = withCopy ? [A4_H - A5_H, 0] : [A4_H - A5_H];
     for (let p = 0; p < pageCount; p++) {
       const a4Page = a4Doc.addPage([A4_W, A4_H]);
