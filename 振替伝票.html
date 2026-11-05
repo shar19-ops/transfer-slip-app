@@ -196,7 +196,8 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: "Meiryo", "Yu Gothic", "MS Gothic", sans-serif; background: #eef6f0; color: #1a2a1f; font-size: 15px; }
 
-  header { background: #1a7a4a; color: white; padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
+  html { scroll-padding-top: 90px; } /* Tab移動やスクロールで入力欄が固定ヘッダーの裏に隠れないように */
+  header { background: #1a7a4a; color: white; padding: 10px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
   header h1 { font-size: 20px; font-weight: 700; }
   .app-version { font-size: 12px; font-weight: 400; color: rgba(255,255,255,0.75); vertical-align: middle; margin-left: 4px; }
   header span { font-size: 13px; opacity: 0.8; }
@@ -288,7 +289,32 @@
 
   .tax-select { width: 100%; border: none; background: transparent; padding: 4px 2px; font-size: 13px; }
 
-  .btn-bar { display: flex; gap: 12px; justify-content: center; padding: 20px 16px; }
+  .btn-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+  header .btn-bar button { padding: 7px 14px; font-size: 13px; font-weight: 600; border-radius: 6px; white-space: nowrap; }
+  header .btn-secondary { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.45); }
+  header .btn-secondary:hover { background: rgba(255,255,255,0.28); }
+  header .btn-primary { background: white; color: #1a7a4a; font-weight: 700; }
+  header .btn-primary:hover { background: #e6f5ea; }
+  header .btn-primary:active { background: #cfe9d7; }
+  #acc-status:empty { display: none; }
+  /* 画面が狭いときは固定ヘッダーが場所を取りすぎないように詰める */
+  @media (max-width: 1180px) {
+    header > span { display: none; }
+  }
+  @media (max-width: 900px) {
+    header h1 { flex: 1 1 0; min-width: 0; }
+    header .acc-badge { order: 1; }
+    header .btn-bar { order: 2; flex-basis: 100%; margin-left: 0; }
+    header #status { order: 3; }
+  }
+  @media (max-width: 640px) {
+    html { scroll-padding-top: 120px; }
+    header { padding: 8px 12px; gap: 6px 8px; }
+    header h1 { font-size: 15px; }
+    header .btn-bar { gap: 6px; flex-wrap: nowrap; }
+    header .btn-bar button { flex: 1 1 auto; padding: 6px 6px; font-size: 12px; }
+    header .btn-acc { padding: 5px 8px; font-size: 12px; }
+  }
   .btn-primary {
     background: #1a7a4a; color: white; border: none; border-radius: 8px;
     padding: 14px 40px; font-size: 16px; font-weight: 700; cursor: pointer;
@@ -303,7 +329,8 @@
   }
   .btn-secondary:hover { background: #e6f5ea; }
 
-  #status { text-align: center; font-size: 13px; color: #4a5a4f; padding: 4px 0 8px; min-height: 22px; }
+  #status { flex-basis: 100%; text-align: center; font-size: 13px; color: #4a5a4f; background: white; border-radius: 4px; padding: 4px 8px; }
+  #status:empty { display: none; }
   .notice { background: #fff8e1; border: 1px solid #f0d98c; border-radius: 6px; padding: 8px 14px; font-size: 12px; color: #6b5a1e; margin-bottom: 16px; }
   .status-ok { color: #1a7a4a !important; }
   .status-err { color: #c0392b !important; }
@@ -316,6 +343,7 @@
   /* 印刷：PDFを画像化して#print-areaに描画し、それだけを印刷する */
   #print-area { display: none; }
   @media print {
+    header { position: static; }
     @page { size: A4; margin: 2.97mm 2.1mm; } /* 約98%に縮小して配置（プリンタの印刷不可領域での欠けを防ぐ） */
     body * { visibility: hidden; }
     #print-area, #print-area * { visibility: visible; }
@@ -345,7 +373,7 @@
   .btn-cancel:hover { background: #d0d8e0; }
 
   /* 経理担当者認証 ─────────────────────────── */
-  .acc-badge { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .acc-badge { display: flex; align-items: center; gap: 10px; }
   .btn-acc {
     background: rgba(255,255,255,0.15); color: white;
     border: 1px solid rgba(255,255,255,0.45); border-radius: 6px;
@@ -420,12 +448,19 @@
 <div id="print-area"></div>
 
 <header>
-  <h1>振替伝票 <span class="app-version">v20261105a</span></h1>
+  <h1>振替伝票 <span class="app-version">v20261106a</span></h1>
   <span>入力フォーム</span>
+  <div class="btn-bar">
+    <button class="btn-secondary" onclick="loadData()">📂 読み込む</button>
+    <button class="btn-secondary" onclick="saveData()">💾 保存</button>
+    <button class="btn-secondary" onclick="clearForm()">クリア</button>
+    <button class="btn-primary" onclick="printPDF()">🖨 印刷 / PDF出力</button>
+  </div>
   <div class="acc-badge">
     <span id="acc-status"></span>
     <button id="acc-btn" class="btn-acc" onclick="toggleAccMode()">🔒 経理担当者</button>
   </div>
+  <div id="status"></div>
 </header>
 
 <!-- 経理担当者パスワードモーダル -->
@@ -623,15 +658,6 @@
       <button type="button" class="btn-secondary" id="invoice-pdf-remove-btn" style="display:none" onclick="removeInvoicePdf()">🗑 削除</button>
     </div>
     <div id="invoice-scan" data-noform></div>
-  </div>
-
-  <div id="status"></div>
-
-  <div class="btn-bar">
-    <button class="btn-secondary" onclick="loadData()">📂 読み込む</button>
-    <button class="btn-secondary" onclick="saveData()">💾 保存</button>
-    <button class="btn-secondary" onclick="clearForm()">クリア</button>
-    <button class="btn-primary" onclick="printPDF()">🖨 印刷 / PDF出力</button>
   </div>
 
 </div><!-- /container -->
