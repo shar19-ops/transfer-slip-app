@@ -384,6 +384,35 @@
   body:not(.acc-mode) [data-acc].btn-secondary {
     pointer-events: none; opacity: 0.5;
   }
+  /* ── 定型テンプレート・請求書読み取り ── */
+  .tpl-row { padding: 14px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .tpl-row select { min-width: 220px; flex: 1 1 220px; }
+  .btn-small { padding: 8px 14px; font-size: 13px; border-width: 1.5px; }
+  .btn-primary-small {
+    background: #1a7a4a; color: white; border: none; border-radius: 8px;
+    padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .btn-primary-small:hover { background: #228a57; }
+  .btn-primary-small:disabled { background: #b8c8bd; cursor: not-allowed; }
+  .tpl-hint { font-size: 12px; color: #6a7a6f; padding: 0 16px 12px; }
+  #invoice-scan { display: none; margin: 0 16px 14px; border: 1px solid #c5e8cf; border-radius: 8px; background: #f6fbf7; padding: 12px 14px; font-size: 13px; color: #334; }
+  #invoice-scan .scan-title { font-weight: 700; color: #1a7a4a; margin-bottom: 8px; }
+  #invoice-scan .scan-grid { display: grid; grid-template-columns: 110px 1fr; gap: 8px 10px; align-items: center; }
+  #invoice-scan .scan-grid > label { font-size: 12px; color: #4a5a4f; }
+  #invoice-scan .scan-amount-wrap { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  #invoice-scan .scan-amount-wrap input { width: 150px; }
+  #invoice-scan .scan-note { font-size: 12px; color: #6a7a6f; margin-top: 8px; }
+  #invoice-scan .scan-warn { color: #a05a00; background: #fff8e1; border: 1px solid #f0d98c; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; }
+  #invoice-scan .scan-actions { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .tpl-match { color: #1a7a4a; font-weight: 700; }
+  .tpl-needs-input { outline: 3px solid #f5b400 !important; background: #fff8dc !important; }
+  .tpl-modal-box { width: min(520px, calc(100vw - 32px)) !important; max-height: calc(100vh - 40px); overflow-y: auto; }
+  .tpl-modal-box .field input { width: 100%; }
+  .tpl-modal-box .field small { font-size: 11px; color: #6a7a6f; }
+  .tpl-list-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tpl-list-table th, .tpl-list-table td { border-bottom: 1px solid #e0e8e2; padding: 6px 4px; text-align: left; vertical-align: middle; }
+  .tpl-list-table th { font-size: 11px; color: #6a7a6f; font-weight: 600; }
+  .tpl-list-table button { border: 1px solid #d0a0a0; background: white; color: #c0392b; border-radius: 5px; padding: 3px 8px; cursor: pointer; font-family: inherit; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -391,7 +420,7 @@
 <div id="print-area"></div>
 
 <header>
-  <h1>振替伝票 <span class="app-version">v20260719c</span></h1>
+  <h1>振替伝票 <span class="app-version">v20261105a</span></h1>
   <span>入力フォーム</span>
   <div class="acc-badge">
     <span id="acc-status"></span>
@@ -416,6 +445,18 @@
 <div class="container">
 
   <div class="notice">※ 環境依存文字（㈱、㈲、丸囲み数字、ローマ数字、特殊記号など）は入力しないでください。PDF出力時に正しく表示されない場合があります。</div>
+
+  <!-- 定型テンプレート（毎月同じ伝票の呼び出し） -->
+  <div class="card" data-noform>
+    <div class="card-header">▌ 定型テンプレート（毎月の伝票）</div>
+    <div class="tpl-row">
+      <select id="tpl-select"></select>
+      <button type="button" class="btn-primary-small" onclick="loadSelectedTemplate()">呼び出す</button>
+      <button type="button" class="btn-secondary btn-small" onclick="openTemplateSaveModal()">＋ 今の入力をテンプレートに保存</button>
+      <button type="button" class="btn-secondary btn-small" onclick="openTemplateManager()">管理</button>
+    </div>
+    <div class="tpl-hint">金額・日付・伝票番号以外（摘要・工番・科目など）を保存します。下の「請求書PDFを添付」で、登録番号から自動で呼び出すこともできます。テンプレートはこのブラウザに保存されるので、「管理」から書き出してバックアップしておくと安心です。</div>
+  </div>
 
   <!-- ヘッダー情報 -->
   <div class="card">
@@ -581,6 +622,7 @@
       <button type="button" class="btn-secondary" id="invoice-pdf-view-btn" style="display:none" onclick="viewInvoicePdf()">👁 表示</button>
       <button type="button" class="btn-secondary" id="invoice-pdf-remove-btn" style="display:none" onclick="removeInvoicePdf()">🗑 削除</button>
     </div>
+    <div id="invoice-scan" data-noform></div>
   </div>
 
   <div id="status"></div>
@@ -593,6 +635,38 @@
   </div>
 
 </div><!-- /container -->
+
+<!-- テンプレート保存モーダル -->
+<div id="tpl-save-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box tpl-modal-box">
+    <h2>＋ テンプレートに保存</h2>
+    <p>今の入力内容（金額・日付・伝票番号・添付PDFを除く）を保存します。金額が入っている行は「次回、金額を入れる行」として覚えます。</p>
+    <div class="field"><label>テンプレート名（必須）</label><input type="text" id="tpl-save-name" placeholder="例：〇〇電機 月額保守料"></div>
+    <div class="field"><label>インボイス登録番号</label><input type="text" id="tpl-save-regno" placeholder="T1234567890123"><small>請求書の登録番号。添付PDFからこの番号で自動的にテンプレートを選びます。</small></div>
+    <div class="field"><label>照合キーワード</label><input type="text" id="tpl-save-keyword" placeholder="例：〇〇電機"><small>登録番号が無い請求書用。PDFにこの文字があればテンプレートを選びます（空欄可）。</small></div>
+    <div class="modal-btn-row">
+      <button class="btn-cancel" onclick="closeTemplateModal('tpl-save-modal')">キャンセル</button>
+      <button class="btn-login" onclick="saveTemplateFromModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- テンプレート管理モーダル -->
+<div id="tpl-manage-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box tpl-modal-box">
+    <h2>📋 テンプレート管理</h2>
+    <div id="tpl-manage-list"></div>
+    <p style="font-size:12px;">テンプレートはこのブラウザだけに保存されています。別のPC・iPadで使うときや、キャッシュ削除に備えて「書き出し」たファイルを保管してください。</p>
+    <input type="file" id="tpl-import-input" accept="application/json,.json" style="display:none" onchange="importTemplates(this)">
+    <div class="modal-btn-row" style="justify-content:space-between; flex-wrap:wrap;">
+      <div style="display:flex; gap:8px;">
+        <button class="btn-cancel" onclick="exportTemplates()">書き出し</button>
+        <button class="btn-cancel" onclick="document.getElementById('tpl-import-input').click()">読み込み</button>
+      </div>
+      <button class="btn-login" onclick="closeTemplateModal('tpl-manage-modal')">閉じる</button>
+    </div>
+  </div>
+</div>
 
 <!-- 控え選択モーダル -->
 <div id="export-modal" class="modal-overlay" style="display:none">
@@ -1193,6 +1267,8 @@ function clearForm() {
   document.querySelectorAll('input, select, textarea').forEach(el => { el.value = ''; });
   attachedInvoicePdf = null;
   updateInvoicePdfUI();
+  hideInvoiceScan();
+  renderTemplateSelect();
   setDefaultIssueDate();
   updateTotal();
 }
@@ -1212,6 +1288,7 @@ function onInvoicePdfSelected(input) {
   reader.onload = () => {
     attachedInvoicePdf = { name: file.name, dataUrl: reader.result };
     updateInvoicePdfUI();
+    scanInvoicePdf(); // 請求書の読み取り（登録番号・金額）。失敗しても添付自体はそのまま
   };
   reader.onerror = () => alert('PDFの読み込みに失敗しました。');
   reader.readAsDataURL(file);
@@ -1220,6 +1297,7 @@ function onInvoicePdfSelected(input) {
 function removeInvoicePdf() {
   attachedInvoicePdf = null;
   updateInvoicePdfUI();
+  hideInvoiceScan();
 }
 
 function viewInvoicePdf() {
@@ -1245,7 +1323,7 @@ function updateInvoicePdfUI() {
 function collectFormData() {
   const data = { __pageCount: pageCount, __invoicePdf: attachedInvoicePdf };
   document.querySelectorAll('.container input, .container select, .container textarea').forEach(el => {
-    if (!el.id) return;
+    if (!el.id || el.closest('[data-noform]')) return; // テンプレート・読み取り欄の操作用部品は保存しない
     data[el.id] = (el.type === 'radio' || el.type === 'checkbox') ? el.checked : el.value;
   });
   return data;
@@ -1741,6 +1819,375 @@ document.getElementById('stamp_enabled').addEventListener('change', redrawStampP
 document.getElementById('export-modal').addEventListener('click', function(e) {
   if (e.target === this) closeExportModal();
 });
+
+// ─── 定型テンプレート ─────────────────────────────────────
+// 毎月同じ内容の伝票（振込先・摘要・科目などが同じで金額だけ違う）を呼び出すしくみ。
+// 保存先はこのブラウザの localStorage（科目の追加リストと同じ）。サーバー送信なし。
+// 書き出し／読み込み（JSON）でバックアップ・別端末への移行ができる。
+const TPL_KEY = 'transfer_slip_templates';
+// 毎月変わる項目はテンプレートに入れない
+const TPL_EXCLUDE = /^(date_year|date_month|date_day|issue_year|issue_month|issue_day|date_picker_.*|voucher_no|debit_amount_\d+|credit_amount_\d+|kessan_amount_\d+|invoice_pdf_input)$/;
+
+function loadTemplates() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(TPL_KEY) || '[]');
+    return Array.isArray(arr) ? arr.filter(t => t && t.name && t.data) : [];
+  } catch (e) { return []; }
+}
+function saveTemplates(arr) {
+  try { localStorage.setItem(TPL_KEY, JSON.stringify(arr)); return true; }
+  catch (e) { alert('テンプレートを保存できませんでした（ブラウザの保存容量・設定を確認してください）。'); return false; }
+}
+function yen(n) { return '￥' + Number(n || 0).toLocaleString('ja-JP'); }
+
+// 登録番号を T＋13桁 にそろえる（全角・ハイフン・空白を吸収）。形式外なら ''
+function normalizeRegNo(s) {
+  const t = String(s || '').normalize('NFKC').toUpperCase().replace(/[\s\-ー－‐]/g, '');
+  if (/^T\d{13}$/.test(t)) return t;
+  if (/^\d{13}$/.test(t)) return 'T' + t;
+  return '';
+}
+
+function renderTemplateSelect(selectedId) {
+  const sel = document.getElementById('tpl-select');
+  if (!sel) return;
+  const tpls = loadTemplates().sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  sel.innerHTML = '<option value="">' + (tpls.length ? '― テンプレートを選択 ―' : '（テンプレート未登録）') + '</option>' +
+    tpls.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}${t.lastAmount ? '（前回 ' + yen(t.lastAmount) + '）' : ''}</option>`).join('');
+  sel.value = selectedId || '';
+}
+
+// 現在の入力で金額が入っている行（＝次回金額を入れる行）
+function currentAmountTargets() {
+  const debit = [], credit = [];
+  for (let k = 0; k < pageCount * NUM_ROWS; k++) {
+    if (parseFloat(gv(`debit_amount_${k}`)) > 0)  debit.push(`debit_amount_${k}`);
+    if (parseFloat(gv(`credit_amount_${k}`)) > 0) credit.push(`credit_amount_${k}`);
+  }
+  return { debit, credit };
+}
+
+function openTemplateSaveModal() {
+  const scanned = lastInvoiceScan && lastInvoiceScan.regNos[0];
+  const selId = document.getElementById('tpl-select').value;
+  const cur = loadTemplates().find(t => t.id === selId);
+  document.getElementById('tpl-save-name').value = cur ? cur.name : fileNamePayee();
+  document.getElementById('tpl-save-regno').value = (cur && cur.regNo) || scanned || '';
+  document.getElementById('tpl-save-keyword').value = cur ? (cur.keyword || '') : fileNamePayee();
+  document.getElementById('tpl-save-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('tpl-save-name').focus(), 30);
+}
+function closeTemplateModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function saveTemplateFromModal() {
+  const name = document.getElementById('tpl-save-name').value.trim();
+  const regRaw = document.getElementById('tpl-save-regno').value.trim();
+  const keyword = document.getElementById('tpl-save-keyword').value.trim();
+  if (!name) { alert('テンプレート名を入力してください。'); return; }
+  const regNo = normalizeRegNo(regRaw);
+  if (regRaw && !regNo) { alert('登録番号は「T」＋13桁の数字で入力してください（空欄でも保存できます）。'); return; }
+
+  const data = {};
+  Object.entries(collectFormData()).forEach(([id, val]) => {
+    if (id === '__invoicePdf' || TPL_EXCLUDE.test(id)) return;
+    data[id] = val;
+  });
+  const targets = currentAmountTargets();
+  const { debitSum } = updateTotal();
+
+  const tpls = loadTemplates();
+  const existing = tpls.find(t => t.name === name);
+  if (existing && !confirm(`「${name}」は登録済みです。上書きしますか？`)) return;
+  const tpl = existing || { id: 'tpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) };
+  Object.assign(tpl, { name, regNo, keyword, data, amountTargets: targets, lastAmount: debitSum || tpl.lastAmount || 0, updatedAt: new Date().toISOString() });
+  if (!existing) tpls.push(tpl);
+  if (!saveTemplates(tpls)) return;
+  renderTemplateSelect(tpl.id);
+  closeTemplateModal('tpl-save-modal');
+  let msg = `テンプレート「${name}」を保存しました。`;
+  if (!targets.debit.length && !targets.credit.length) msg += '（金額の入った行が無いため、呼び出し時の金額の自動入力はできません）';
+  setStatus(msg);
+}
+
+function loadSelectedTemplate() {
+  const id = document.getElementById('tpl-select').value;
+  const tpl = loadTemplates().find(t => t.id === id);
+  if (!tpl) { alert('テンプレートを選択してください。'); return; }
+  if (formHasContent() && !confirm('今の入力内容をテンプレートの内容で置き換えます。よろしいですか？')) return;
+  applyTemplate(tpl, null);
+}
+
+function formHasContent() {
+  for (let k = 0; k < pageCount * NUM_ROWS; k++) {
+    if (gv(`debit_amount_${k}`) || gv(`credit_amount_${k}`) || gv(`summary_${k}`)) return true;
+  }
+  return false;
+}
+
+// テンプレートを適用。amount があれば金額行に入れる（借方1行・貸方1行のときだけ自動。複数行は手入力を促す）
+function applyTemplate(tpl, amount) {
+  const keepPdf = attachedInvoicePdf;
+  setPageCount(1);
+  document.querySelectorAll('.container input, .container select, .container textarea').forEach(el => {
+    if (el.closest('[data-noform]') || el.type === 'file') return;
+    el.value = '';
+  });
+  applyFormData(tpl.data);
+  attachedInvoicePdf = keepPdf;
+  updateInvoicePdfUI();
+  setDefaultIssueDate();
+
+  const t = tpl.amountTargets || { debit: [], credit: [] };
+  const all = [...t.debit, ...t.credit];
+  let msg;
+  if (amount > 0 && t.debit.length <= 1 && t.credit.length <= 1 && all.length) {
+    all.forEach(id => { const el = document.getElementById(id); if (el) el.value = String(amount); });
+    msg = `「${tpl.name}」を呼び出し、金額 ${yen(amount)} を入れました。内容を確認してください。`;
+  } else {
+    all.forEach(id => document.getElementById(id)?.classList.add('tpl-needs-input'));
+    msg = `「${tpl.name}」を呼び出しました。黄色の欄に今月の金額を入力してください。` + (tpl.lastAmount ? `（前回 ${yen(tpl.lastAmount)}）` : '');
+    if (amount > 0 && all.length > 1) msg = `「${tpl.name}」を呼び出しました。金額が複数行に分かれているため、黄色の欄に入力してください（請求額 ${yen(amount)}）。`;
+  }
+  updateTotal();
+
+  if (amount > 0) {
+    const tpls = loadTemplates();
+    const saved = tpls.find(x => x.id === tpl.id);
+    if (saved) { saved.lastAmount = amount; saved.lastUsedAt = new Date().toISOString(); saveTemplates(tpls); }
+  }
+  renderTemplateSelect(tpl.id);
+  setStatus(msg);
+  document.getElementById(all[0] || 'summary_0')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// 金額欄を入力したら黄色の強調を外す
+document.addEventListener('input', e => { if (e.target.classList) e.target.classList.remove('tpl-needs-input'); });
+
+function setStatus(msg, isErr) {
+  const st = document.getElementById('status');
+  st.textContent = msg;
+  st.className = isErr ? 'status-err' : '';
+}
+
+// ── テンプレート管理（一覧・削除・書き出し・読み込み） ──
+function openTemplateManager() {
+  renderTemplateManager();
+  document.getElementById('tpl-manage-modal').style.display = 'flex';
+}
+function renderTemplateManager() {
+  const tpls = loadTemplates().sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  const box = document.getElementById('tpl-manage-list');
+  if (!tpls.length) { box.innerHTML = '<p>登録されたテンプレートはありません。</p>'; return; }
+  box.innerHTML = '<table class="tpl-list-table"><thead><tr><th>名前</th><th>登録番号／キーワード</th><th>前回金額</th><th></th></tr></thead><tbody>' +
+    tpls.map(t => `<tr><td>${escapeHtml(t.name)}</td><td>${escapeHtml(t.regNo || '')}${t.regNo && t.keyword ? '<br>' : ''}${escapeHtml(t.keyword || '')}</td>` +
+      `<td>${t.lastAmount ? yen(t.lastAmount) : '―'}</td><td><button onclick="deleteTemplate('${escapeHtml(t.id)}')">削除</button></td></tr>`).join('') +
+    '</tbody></table>';
+}
+function deleteTemplate(id) {
+  const tpls = loadTemplates();
+  const t = tpls.find(x => x.id === id);
+  if (!t || !confirm(`テンプレート「${t.name}」を削除しますか？`)) return;
+  saveTemplates(tpls.filter(x => x.id !== id));
+  renderTemplateManager();
+  renderTemplateSelect();
+}
+function exportTemplates() {
+  const tpls = loadTemplates();
+  if (!tpls.length) { alert('書き出すテンプレートがありません。'); return; }
+  const blob = new Blob([JSON.stringify({ app: 'transfer-slip', kind: 'templates', version: 1, templates: tpls }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `振替伝票テンプレート_${fileNameDate()}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function importTemplates(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let incoming;
+    try {
+      const obj = JSON.parse(reader.result);
+      incoming = (obj && obj.kind === 'templates' && Array.isArray(obj.templates)) ? obj.templates : null;
+    } catch (e) { incoming = null; }
+    if (!incoming) { alert('テンプレートの書き出しファイルではありません。'); return; }
+    incoming = incoming.filter(t => t && t.name && t.data);
+    const tpls = loadTemplates();
+    const dup = incoming.filter(t => tpls.some(x => x.name === t.name)).length;
+    if (dup && !confirm(`同じ名前のテンプレートが${dup}件あります。読み込んだ内容で上書きしますか？`)) return;
+    incoming.forEach(t => {
+      const i = tpls.findIndex(x => x.name === t.name);
+      if (i >= 0) tpls[i] = Object.assign(t, { id: tpls[i].id }); else tpls.push(t);
+    });
+    saveTemplates(tpls);
+    renderTemplateManager();
+    renderTemplateSelect();
+    alert(`${incoming.length}件のテンプレートを読み込みました。`);
+  };
+  reader.readAsText(file);
+}
+
+// ─── 請求書PDFの読み取り ───────────────────────────────────
+// 文字情報のあるPDF（電子発行）から、登録番号・請求金額・請求日の候補を拾う。
+// ブラウザ内で処理し、外部へは送らない。スキャン・手書きのPDFは読めないので手入力に回す。
+let lastInvoiceScan = null; // { regNos, amounts:[{value,label}], date, textLen }
+
+async function extractPdfText(bytes, maxPages = 3) {
+  if (!pdfjsWorkerConfigured) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/legacy/build/pdf.worker.min.js';
+    pdfjsWorkerConfigured = true;
+  }
+  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  let text = '';
+  for (let p = 1; p <= Math.min(pdf.numPages, maxPages); p++) {
+    const content = await (await pdf.getPage(p)).getTextContent();
+    text += content.items.map(it => it.str + (it.hasEOL ? '\n' : ' ')).join('') + '\n';
+  }
+  return text;
+}
+
+// 金額を探す見出し（上ほど優先）
+const AMOUNT_LABELS = [
+  ['今回ご請求金額', '今回御請求金額', '今回ご請求額', '今回御請求額', '今回請求金額', '今回請求額'],
+  ['ご請求金額', '御請求金額', 'ご請求額', '御請求額', '請求金額合計', '請求金額', '請求額'],
+  ['税込合計金額', '税込合計', '総合計金額', '総合計', '合計金額'],
+  ['合計'],
+];
+
+function parseInvoiceText(raw) {
+  const text = raw.normalize('NFKC');
+  const flat = text.replace(/\s+/g, '');               // 「ご 請 求 金 額」のような字間の空白を詰める
+  const result = { regNos: [], amounts: [], date: '', textLen: flat.length };
+
+  // 登録番号（T＋13桁）
+  (flat.match(/T\d{13}(?!\d)/g) || []).forEach(r => { if (!result.regNos.includes(r)) result.regNos.push(r); });
+
+  // 請求金額
+  const toNum = s => Number(s.replace(/,/g, ''));
+  const seen = new Map();
+  const addCand = (value, label, prio, pos) => {
+    if (!(value > 0 && value < 1e10)) return;
+    const cur = seen.get(value);
+    if (!cur || prio < cur.prio || (prio === cur.prio && pos < cur.pos)) seen.set(value, { value, label, prio, pos });
+  };
+  AMOUNT_LABELS.forEach((labels, prio) => {
+    labels.forEach(label => {
+      let idx = flat.indexOf(label);
+      while (idx >= 0) {
+        const after = flat.slice(idx + label.length, idx + label.length + 40);
+        // 見出しの直後（括弧書き・記号を挟んでよい）にある金額。日付・数量・率は除く
+        const m = after.match(/^[^0-9]{0,15}?(\d{1,3}(?:,\d{3})+|\d+)(?![\d,]*[年月日%件個枚台本式回])/);
+        if (m && !/[年月日\/]/.test(after.slice(0, m.index + m[0].length - m[1].length))) {
+          addCand(toNum(m[1]), label, prio, idx);
+        }
+        idx = flat.indexOf(label, idx + label.length);
+      }
+    });
+  });
+  // 見出しが見つからないときの予備：「¥12,345」「12,345円」の形の金額（大きい順）
+  (flat.match(/[¥\\](\d{1,3}(?:,\d{3})+|\d+)|(\d{1,3}(?:,\d{3})+|\d+)円/g) || []).forEach((s, i) => {
+    addCand(toNum(s.replace(/[¥\\円]/g, '')), '金額表記', 9, 1e6 - toNum(s.replace(/[¥\\円]/g, '')));
+  });
+  result.amounts = [...seen.values()].sort((a, b) => a.prio - b.prio || a.pos - b.pos).slice(0, 6);
+
+  // 請求日（参考表示のみ）
+  const dm = flat.match(/(?:請求日|発行日|請求年月日|発行年月日|請求書発行日)[:：]?(?:(\d{4})|令和(\d{1,2}))[年\/.\-](\d{1,2})[月\/.\-](\d{1,2})/);
+  if (dm) result.date = `${dm[1] || (2018 + Number(dm[2]))}年${Number(dm[3])}月${Number(dm[4])}日`;
+  return result;
+}
+
+// テンプレートを選ぶ：登録番号の一致を優先、無ければキーワード（長い方を優先）
+function matchTemplate(scan, flatText) {
+  const tpls = loadTemplates();
+  const byReg = tpls.find(t => t.regNo && scan.regNos.includes(t.regNo));
+  if (byReg) return { tpl: byReg, how: '登録番号が一致' };
+  const norm = s => String(s || '').normalize('NFKC').replace(/\s+/g, '');
+  const byKw = tpls.filter(t => norm(t.keyword) && flatText.includes(norm(t.keyword)))
+                   .sort((a, b) => norm(b.keyword).length - norm(a.keyword).length)[0];
+  if (byKw) return { tpl: byKw, how: `「${byKw.keyword}」の文字が一致` };
+  return null;
+}
+
+function hideInvoiceScan() {
+  lastInvoiceScan = null;
+  const box = document.getElementById('invoice-scan');
+  if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+}
+
+async function scanInvoicePdf() {
+  const box = document.getElementById('invoice-scan');
+  if (!attachedInvoicePdf) return hideInvoiceScan();
+  box.style.display = 'block';
+  box.innerHTML = '<div class="scan-title">📄 請求書を読み取り中…</div>';
+  let scan, flat = '';
+  try {
+    const bytes = Uint8Array.from(atob(attachedInvoicePdf.dataUrl.split(',')[1]), c => c.charCodeAt(0));
+    const raw = await extractPdfText(bytes);
+    flat = raw.normalize('NFKC').replace(/\s+/g, '');
+    scan = parseInvoiceText(raw);
+  } catch (e) {
+    scan = { regNos: [], amounts: [], date: '', textLen: 0, error: String(e && e.message || e) };
+  }
+  lastInvoiceScan = scan;
+  const match = matchTemplate(scan, flat);
+  renderInvoiceScan(scan, match);
+}
+
+function renderInvoiceScan(scan, match) {
+  const box = document.getElementById('invoice-scan');
+  const tpls = loadTemplates().sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  const noText = scan.textLen < 20;
+  const top = scan.amounts[0];
+  let html = '<div class="scan-title">📄 請求書の読み取り結果</div>';
+  if (scan.error) html += `<div class="scan-warn">PDFを読み取れませんでした。金額は手入力してください。</div>`;
+  else if (noText) html += '<div class="scan-warn">このPDFには文字情報がありません（スキャン・写真・手書きの請求書）。テンプレートを選んで、金額は手入力してください。</div>';
+  else if (!top) html += '<div class="scan-warn">請求金額を見つけられませんでした。金額は手入力してください。</div>';
+
+  html += '<div class="scan-grid">';
+  html += `<label>登録番号</label><div>${scan.regNos.length ? escapeHtml(scan.regNos.join('、')) : '―'}</div>`;
+  html += `<label>テンプレート</label><div><select id="scan-tpl" onchange="onScanTplChange()" style="width:100%;">` +
+    '<option value="">（使わない）</option>' +
+    tpls.map(t => `<option value="${escapeHtml(t.id)}"${match && match.tpl.id === t.id ? ' selected' : ''}>${escapeHtml(t.name)}</option>`).join('') +
+    `</select>${match ? `<div class="tpl-match">✓ ${escapeHtml(match.how)}</div>` : ''}<div id="scan-last" class="scan-note"></div></div>`;
+  html += '<label>請求金額</label><div class="scan-amount-wrap">';
+  if (scan.amounts.length > 1) {
+    html += '<select id="scan-amount-cands" onchange="document.getElementById(\'scan-amount\').value=this.value">' +
+      scan.amounts.map(a => `<option value="${a.value}">${yen(a.value)}（${escapeHtml(a.label)}）</option>`).join('') + '</select>';
+  }
+  html += `<input type="number" id="scan-amount" min="0" step="1" placeholder="金額を入力" value="${top ? top.value : ''}">`;
+  html += '</div>';
+  if (scan.date) html += `<label>請求日</label><div>${escapeHtml(scan.date)}（参考）</div>`;
+  html += '</div>';
+  html += '<div class="scan-actions"><button type="button" id="scan-apply-btn" class="btn-primary-small" onclick="applyInvoiceScan()">この内容で伝票に反映</button></div>';
+  html += '<div class="scan-note">※ 読み取った金額は必ず請求書と見比べて確認してください。テンプレートが無い業者は、伝票を入力してから「＋ 今の入力をテンプレートに保存」しておくと、次回から自動で選ばれます。</div>';
+  box.innerHTML = html;
+  onScanTplChange();
+}
+
+function onScanTplChange() {
+  const id = document.getElementById('scan-tpl')?.value;
+  const tpl = loadTemplates().find(t => t.id === id);
+  const last = document.getElementById('scan-last');
+  const btn = document.getElementById('scan-apply-btn');
+  if (last) last.textContent = tpl && tpl.lastAmount ? `前回の金額：${yen(tpl.lastAmount)}` : '';
+  if (btn) {
+    btn.disabled = !tpl;
+    btn.title = tpl ? '' : 'テンプレートを選ぶと反映できます';
+  }
+}
+
+function applyInvoiceScan() {
+  const id = document.getElementById('scan-tpl')?.value;
+  const tpl = loadTemplates().find(t => t.id === id);
+  if (!tpl) { alert('テンプレートを選択してください。'); return; }
+  const amount = Math.round(Number(document.getElementById('scan-amount')?.value) || 0);
+  if (formHasContent() && !confirm('今の入力内容をテンプレートの内容で置き換えます。よろしいですか？')) return;
+  applyTemplate(tpl, amount);
+}
+
+renderTemplateSelect();
 
 // ─── 経理担当者認証 ─────────────────────────────────────────
 const ACC_PASS = 'acc';
