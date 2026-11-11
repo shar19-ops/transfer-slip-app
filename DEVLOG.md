@@ -344,3 +344,10 @@ Chromeの技術的なインストール可否判定は満たされ、Service Wor
 - 狭い画面: 1180px以下で補足表示を隠す、900px以下でタイトル+経理ボタン／4ボタンの2段、640px以下で文字とボタンを縮小。
 - `scroll-padding-top` で、Tab移動した入力欄がヘッダーの裏に隠れないようにした。印刷時は固定を解除。
 - 支払伝票系5アプリ共通の変更（shiharai-denpyo / teiki-slip-ippan-app / payment-slip-app / teiki-slip-app / transfer-slip-app）。
+
+## 2026-11-11: 印刷時の画像化を300dpiに（ぼやけの解消）
+
+- 印刷ボタンはPDFをpdf.jsで画像化して印刷する方式で、解像度が約144dpi（`printViaCanvas()` の `scale = 2`）だったため、印刷すると伝票がぼやけていた。`scale = 300 / 72`（300dpi、A4で2480×3508px）に変更。
+- 大きさ・配置（97%縮小・上端9pt/下端12pt余白）は変更なし（運用中のため、ユーザー指定）。PDF出力（ダウンロード）はもともとベクターなので影響なし。
+- 同日に新規作成した入金伝票アプリ（deposit-slip-app）で試し刷りし、くっきり印刷されることを確認してから、支払伝票系5アプリ共通で変更（payment-slip-app #5 / shiharai-denpyo #6 / transfer-slip-app #6 / teiki-slip-app #7 / teiki-slip-ippan-app #7）。
+- 補足: Chromeの印刷プレビューでは白紙の2ページ目が表示されるが、実際の印刷は1枚のみ（ユーザー確認。変更前から同じ）。
