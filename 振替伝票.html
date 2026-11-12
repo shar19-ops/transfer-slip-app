@@ -448,7 +448,7 @@
 <div id="print-area"></div>
 
 <header>
-  <h1>振替伝票 <span class="app-version">v20261106a</span></h1>
+  <h1>振替伝票 <span class="app-version">v20261112a</span></h1>
   <span>入力フォーム</span>
   <div class="btn-bar">
     <button class="btn-secondary" onclick="loadData()">📂 読み込む</button>
@@ -803,14 +803,15 @@ const KESSAN_COL_X = {
 };
 
 // ─── 事業所マスタ ─────────────────────────────────────────────
+// 事業所CD（2026-11-12 基幹系変更に伴い 010〜090 → 100〜700 に変更）
 const OFFICE_MAP = {
-  '本店':     '010',
-  '東関東支店':'020',
-  '横浜支店': '030',
-  '大阪支店': '040',
-  '名古屋支店':'050',
-  '仙台支店': '060',
-  '北関東支店':'090',
+  '本店':     '100',
+  '東関東支店':'300',
+  '横浜支店': '200',
+  '大阪支店': '500',
+  '名古屋支店':'700',
+  '仙台支店': '600',
+  '北関東支店':'400',
 };
 function onOfficeChange() {
   const name = document.getElementById('office_name').value;
@@ -1368,6 +1369,7 @@ function applyFormData(data) {
   refreshAllAccountDisplays();
   formatAllKessanAmounts();
   updateTotal();
+  onOfficeChange(); // 事業所CDは事業所名から入れ直す（保存データ・テンプレートに残っている旧コード対策）
 }
 
 // 保存・PDF出力時のファイル名候補: 振替伝票_支払先_発行日(YYMMDD)_起票者の苗字（未入力の部分は省略）
@@ -1504,6 +1506,7 @@ async function printViaCanvas(pdfBytes, title) {
 
 // ─── PDF生成 ─────────────────────────────────────────────────
 async function generatePDF(withCopy, mode = 'download') {
+  onOfficeChange(); // 事業所CDは事業所名から入れ直す（保存データ・テンプレートに残っている旧コード対策）
   const statusEl = document.getElementById('status');
   statusEl.textContent = 'PDFを生成中...';
   statusEl.className = '';
