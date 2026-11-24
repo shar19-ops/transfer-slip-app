@@ -640,8 +640,8 @@
               <option value="本店長">本店長</option>
             </select>
           </label>
-          <label style="display:flex; gap:6px; align-items:center; font-size:13px; font-weight:600;"><input type="radio" name="stamp_color" value="red"> 朱（赤）</label>
-          <label style="display:flex; gap:6px; align-items:center; font-size:13px; font-weight:600;"><input type="radio" name="stamp_color" value="black" checked> 黒</label>
+          <label style="display:flex; gap:6px; align-items:center; font-size:13px; font-weight:600;"><input type="radio" name="stamp_color" id="stamp_color_red" value="red"> 朱（赤）</label>
+          <label style="display:flex; gap:6px; align-items:center; font-size:13px; font-weight:600;"><input type="radio" name="stamp_color" id="stamp_color_black" value="black" checked> 黒</label>
         </div>
       </div>
     </div>
@@ -1291,13 +1291,24 @@ function updateTotal() {
 function clearForm() {
   if (!confirm('入力内容をすべてクリアしますか？')) return;
   setPageCount(1);
-  document.querySelectorAll('input, select, textarea').forEach(el => { el.value = ''; });
+  clearFormControls('input, select, textarea');
   attachedInvoicePdf = null;
   updateInvoicePdfUI();
   hideInvoiceScan();
   renderTemplateSelect();
   setDefaultIssueDate();
   updateTotal();
+}
+
+// 入力欄を空にする。ラジオ・チェックボックスは value を消すと選択肢の値（red/black など）が失われるため、
+// value には触れず、チェック状態を初期値（HTMLの checked）に戻す
+function clearFormControls(selector, skip) {
+  document.querySelectorAll(selector).forEach(el => {
+    if (skip && skip(el)) return;
+    if (el.type === 'radio' || el.type === 'checkbox') el.checked = el.defaultChecked;
+    else el.value = '';
+  });
+  redrawStampPreview();
 }
 
 // ─── 請求書PDF添付 ──────────────────────────────
@@ -1366,6 +1377,12 @@ function applyFormData(data) {
     if (el.type === 'radio' || el.type === 'checkbox') el.checked = val;
     else el.value = val;
   });
+  // デート印の色：保存データに色が無い（以前に保存したファイル・テンプレート）ときは役職から決める
+  if (!('stamp_color_red' in data) && !('stamp_color_black' in data)) {
+    const color = TITLE_DEFAULT_COLOR[v('issuer_title')] || 'black';
+    document.getElementById('stamp_color_' + color).checked = true;
+  }
+  redrawStampPreview();
   refreshAllAccountDisplays();
   formatAllKessanAmounts();
   updateTotal();
@@ -1957,10 +1974,8 @@ function formHasContent() {
 function applyTemplate(tpl, amount) {
   const keepPdf = attachedInvoicePdf;
   setPageCount(1);
-  document.querySelectorAll('.container input, .container select, .container textarea').forEach(el => {
-    if (el.closest('[data-noform]') || el.type === 'file') return;
-    el.value = '';
-  });
+  clearFormControls('.container input, .container select, .container textarea',
+    el => el.closest('[data-noform]') || el.type === 'file');
   applyFormData(tpl.data);
   attachedInvoicePdf = keepPdf;
   updateInvoicePdfUI();
