@@ -267,6 +267,8 @@
   }
   .account-cell .account-display span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .account-cell .acc-code { color: #5a6a5f; font-size: 12px; }
+  /* 科目の選択欄は透明なので、入力待ちの黄色はマス全体に付ける */
+  .account-cell:has(select.tpl-needs-input) { outline: 3px solid #f5b400; outline-offset: -3px; background: #fff8dc; }
   table.detail td.amount-cell input { text-align: right; }
   table.detail .split-cell { display: flex; flex-direction: column; gap: 2px; }
   table.detail .split-cell input, table.detail .split-cell select { border-bottom: 1px dashed #dcefe1; }
@@ -658,6 +660,8 @@
       <button type="button" class="btn-secondary" id="invoice-pdf-remove-btn" style="display:none" onclick="removeInvoicePdf()">🗑 削除</button>
     </div>
     <div id="invoice-scan" data-noform></div>
+    <!-- 請求書を読み込んだときだけ中身が入る：借方の金額欄の候補（税別・消費税・交通費などを行ごとに選ぶ） -->
+    <datalist id="invoice-amount-cands"></datalist>
   </div>
 
 </div><!-- /container -->
@@ -1066,7 +1070,7 @@ function rowHtml(k) {
         <option value="免抜">免抜</option>
       </select>
     </td>
-    <td class="amount-cell"><input type="number" id="debit_amount_${k}" placeholder="0" min="0" step="1" oninput="updateTotal()"></td>
+    <td class="amount-cell"><input type="number" id="debit_amount_${k}" list="invoice-amount-cands" placeholder="0" min="0" step="1" oninput="updateTotal()"></td>
     <td>
       <div class="split-cell">
         <input type="text" id="work_area_${k}" placeholder="工番">
@@ -1261,6 +1265,12 @@ setDefaultIssueDate();
 function updateTotal() {
   let debitSum = 0, creditSum = 0;
   const totalRows = pageCount * NUM_ROWS;
+  if (invoiceCreditSync) { // 請求書をテンプレートなしで反映したとき：貸方1行目＝借方の合計
+    let s = 0;
+    for (let k = 0; k < totalRows; k++) s += parseFloat(document.getElementById(`debit_amount_${k}`)?.value) || 0;
+    const c0 = document.getElementById('credit_amount_0');
+    if (c0) c0.value = s > 0 ? String(s) : '';
+  }
   for (let k = 0; k < totalRows; k++) {
     debitSum  += parseFloat(document.getElementById(`debit_amount_${k}`)?.value)  || 0;
     creditSum += parseFloat(document.getElementById(`credit_amount_${k}`)?.value) || 0;
@@ -1368,6 +1378,7 @@ function collectFormData() {
 }
 
 function applyFormData(data) {
+  invoiceCreditSync = false; // 読み込み・テンプレート適用では貸方を自動で合わせない
   setPageCount(data.__pageCount || 1);
   attachedInvoicePdf = data.__invoicePdf || null;
   updateInvoicePdfUI();
@@ -2077,6 +2088,16 @@ function importTemplates(input) {
 // 文字情報のあるPDF（電子発行）から、登録番号・請求金額・請求日の候補を拾う。
 // ブラウザ内で処理し、外部へは送らない。スキャン・手書きのPDFは読めないので手入力に回す。
 let lastInvoiceScan = null; // { regNos, amounts:[{value,label}], date, textLen }
+// テンプレートなしで反映したあと、貸方1行目を借方の合計に合わせ続けるか（貸方1行目を手で直したらやめる）
+var invoiceCreditSync = false; // updateTotal() は起動時にも呼ばれるため、宣言より前でも使える var にする
+document.addEventListener('input', e => { if (e.target.id === 'credit_amount_0') invoiceCreditSync = false; }, true);
+
+// 借方の金額欄の候補（請求書の読み取り結果）。空なら候補は出ない
+function setInvoiceAmountCands(amounts) {
+  const dl = document.getElementById('invoice-amount-cands');
+  if (!dl) return;
+  dl.innerHTML = (amounts || []).map(a => `<option value="${a.value}" label="${escapeHtml(yen(a.value) + '（' + a.label + '）')}"></option>`).join('');
+}
 
 async function extractPdfText(bytes, maxPages = 3) {
   if (!pdfjsWorkerConfigured) {
@@ -2159,6 +2180,8 @@ function matchTemplate(scan, flatText) {
 
 function hideInvoiceScan() {
   lastInvoiceScan = null;
+  invoiceCreditSync = false;
+  setInvoiceAmountCands([]);
   const box = document.getElementById('invoice-scan');
   if (box) { box.style.display = 'none'; box.innerHTML = ''; }
 }
@@ -2178,6 +2201,7 @@ async function scanInvoicePdf() {
     scan = { regNos: [], amounts: [], date: '', textLen: 0, error: String(e && e.message || e) };
   }
   lastInvoiceScan = scan;
+  setInvoiceAmountCands(scan.amounts);
   const match = matchTemplate(scan, flat);
   renderInvoiceScan(scan, match);
 }
@@ -2221,7 +2245,7 @@ function onScanTplChange() {
   if (last) last.textContent = tpl && tpl.lastAmount ? `前回の金額：${yen(tpl.lastAmount)}` : '';
   if (btn) {
     // テンプレートが無くても押せる（金額だけ1行目に入れる）
-    btn.title = tpl ? 'テンプレートの内容と金額を伝票に入れます' : 'テンプレート未選択：金額だけを1行目の借方・貸方に入れます';
+    btn.title = tpl ? 'テンプレートの内容と金額を伝票に入れます' : 'テンプレート未選択：金額を借方2行目に入れ、貸方1行目は借方の合計にします';
   }
 }
 
@@ -2234,21 +2258,23 @@ function applyInvoiceScan() {
   applyTemplate(tpl, amount);
 }
 
-// テンプレートが選ばれていないとき：今の入力はそのままにして、金額だけ1行目の借方・貸方に入れる。
-// 科目・摘要は手入力なので黄色で示す
+// テンプレートが選ばれていないとき：今の入力はそのままにして、金額を借方2行目に入れる。
+// 貸方1行目は借方の合計（借方を税別・消費税・交通費などに分けても自動で合う）。
+// 借方の金額欄では読み取った金額の候補を選べる。科目・摘要は手入力なので黄色で示す
 function applyInvoiceAmountOnly(amount) {
   if (!(amount > 0)) { alert('請求金額を入力してください。'); document.getElementById('scan-amount')?.focus(); return; }
-  const debit = document.getElementById('debit_amount_0');
+  const debit = document.getElementById('debit_amount_1');
   const credit = document.getElementById('credit_amount_0');
-  const had = [debit, credit].filter(el => el && el.value && Number(el.value) !== amount);
-  if (had.length && !confirm(`1行目の金額（${had.map(el => yen(el.value)).join('／')}）を ${yen(amount)} に書き換えます。よろしいですか？`)) return;
-  debit.value = credit.value = String(amount);
-  ['debit_account_0', 'credit_account_0', 'summary_0'].forEach(id => {
+  const had = [[debit, '借方2行目'], [credit, '貸方1行目']].filter(([el]) => el && el.value && Number(el.value) !== amount);
+  if (had.length && !confirm(`${had.map(([el, n]) => `${n}の金額（${yen(el.value)}）`).join('、')}を書き換えます。よろしいですか？`)) return;
+  debit.value = String(amount);
+  invoiceCreditSync = true;
+  ['debit_account_1', 'credit_account_0', 'summary_0'].forEach(id => {
     const el = document.getElementById(id);
     if (el && !el.value) el.classList.add('tpl-needs-input');
   });
   updateTotal();
-  setStatus(`金額 ${yen(amount)} を1行目の借方・貸方に入れました。黄色の欄（科目・摘要）を入力してください。次回のために「＋ 今の入力をテンプレートに保存」もしておくと便利です。`);
+  setStatus(`金額 ${yen(amount)} を借方2行目に入れ、貸方1行目は借方の合計にしました。借方を税別・消費税などに分けるときは、借方の金額欄で読み取った金額の候補を選べます。黄色の欄（科目・摘要）を入力してください。`);
   debit.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
