@@ -448,7 +448,7 @@
 <div id="print-area"></div>
 
 <header>
-  <h1>振替伝票 <span class="app-version">v20261112a</span></h1>
+  <h1>振替伝票 <span class="app-version">v20261126a</span></h1>
   <span>入力フォーム</span>
   <div class="btn-bar">
     <button class="btn-secondary" onclick="loadData()">📂 読み込む</button>
@@ -2123,7 +2123,10 @@ function parseInvoiceText(raw) {
         const after = flat.slice(idx + label.length, idx + label.length + 40);
         // 見出しの直後（括弧書き・記号を挟んでよい）にある金額。日付・数量・率は除く
         const m = after.match(/^[^0-9]{0,15}?(\d{1,3}(?:,\d{3})+|\d+)(?![\d,]*[年月日%件個枚台本式回])/);
-        if (m && !/[年月日\/]/.test(after.slice(0, m.index + m[0].length - m[1].length))) {
+        const lead = m ? after.slice(0, m.index + m[0].length - m[1].length) : '';
+        // 郵便番号（〒102-0082）・電話番号（TEL:03-…）は金額ではない
+        const isPostalOrTel = m && (/〒|TEL|FAX|電話/i.test(lead) || after.charAt(m[0].length) === '-');
+        if (m && !isPostalOrTel && !/[年月日\/]/.test(lead)) {
           addCand(toNum(m[1]), label, prio, idx);
         }
         idx = flat.indexOf(label, idx + label.length);
@@ -2217,18 +2220,36 @@ function onScanTplChange() {
   const btn = document.getElementById('scan-apply-btn');
   if (last) last.textContent = tpl && tpl.lastAmount ? `前回の金額：${yen(tpl.lastAmount)}` : '';
   if (btn) {
-    btn.disabled = !tpl;
-    btn.title = tpl ? '' : 'テンプレートを選ぶと反映できます';
+    // テンプレートが無くても押せる（金額だけ1行目に入れる）
+    btn.title = tpl ? 'テンプレートの内容と金額を伝票に入れます' : 'テンプレート未選択：金額だけを1行目の借方・貸方に入れます';
   }
 }
 
 function applyInvoiceScan() {
   const id = document.getElementById('scan-tpl')?.value;
   const tpl = loadTemplates().find(t => t.id === id);
-  if (!tpl) { alert('テンプレートを選択してください。'); return; }
   const amount = Math.round(Number(document.getElementById('scan-amount')?.value) || 0);
+  if (!tpl) return applyInvoiceAmountOnly(amount);
   if (formHasContent() && !confirm('今の入力内容をテンプレートの内容で置き換えます。よろしいですか？')) return;
   applyTemplate(tpl, amount);
+}
+
+// テンプレートが選ばれていないとき：今の入力はそのままにして、金額だけ1行目の借方・貸方に入れる。
+// 科目・摘要は手入力なので黄色で示す
+function applyInvoiceAmountOnly(amount) {
+  if (!(amount > 0)) { alert('請求金額を入力してください。'); document.getElementById('scan-amount')?.focus(); return; }
+  const debit = document.getElementById('debit_amount_0');
+  const credit = document.getElementById('credit_amount_0');
+  const had = [debit, credit].filter(el => el && el.value && Number(el.value) !== amount);
+  if (had.length && !confirm(`1行目の金額（${had.map(el => yen(el.value)).join('／')}）を ${yen(amount)} に書き換えます。よろしいですか？`)) return;
+  debit.value = credit.value = String(amount);
+  ['debit_account_0', 'credit_account_0', 'summary_0'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.value) el.classList.add('tpl-needs-input');
+  });
+  updateTotal();
+  setStatus(`金額 ${yen(amount)} を1行目の借方・貸方に入れました。黄色の欄（科目・摘要）を入力してください。次回のために「＋ 今の入力をテンプレートに保存」もしておくと便利です。`);
+  debit.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 renderTemplateSelect();
