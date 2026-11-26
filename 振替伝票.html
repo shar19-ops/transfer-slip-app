@@ -276,8 +276,9 @@
   .amount-cand-value { text-align: right; min-width: 6em; }
   .amount-cand-label { color: #778; font-size: 11px; }
   @media print { .amount-cand-pop { display: none !important; } }
-  /* 科目の選択欄は透明なので、入力待ちの黄色はマス全体に付ける */
-  .account-cell:has(select.tpl-needs-input) { outline: 3px solid #f5b400; outline-offset: -3px; background: #fff8dc; }
+  /* 科目の選択欄は透明なので、入力待ちの黄色はマス全体に付ける。
+     科目は経理担当者しか入力できないため、経理担当者モードのときだけ黄色にする */
+  body.acc-mode .account-cell:has(select.tpl-needs-input) { outline: 3px solid #f5b400; outline-offset: -3px; background: #fff8dc; }
   table.detail td.amount-cell input { text-align: right; }
   table.detail .split-cell { display: flex; flex-direction: column; gap: 2px; }
   table.detail .split-cell input, table.detail .split-cell select { border-bottom: 1px dashed #dcefe1; }
@@ -2311,7 +2312,7 @@ function applyInvoiceAmountOnly(amount) {
     if (el && !el.value) el.classList.add('tpl-needs-input');
   });
   updateTotal();
-  setStatus(`金額 ${yen(amount)} を借方2行目と貸方1行目に入れました。借方を税別・消費税などに分けるときは、借方の金額欄をクリックすると請求書の金額の候補から選べます。黄色の欄（科目・摘要）を入力してください。`);
+  setStatus(`金額 ${yen(amount)} を借方2行目と貸方1行目に入れました。借方を税別・消費税などに分けるときは、借方の金額欄をクリックすると請求書の金額の候補から選べます。黄色の欄（${accMode ? '科目・摘要' : '摘要'}）を入力してください。`);
   debit.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
