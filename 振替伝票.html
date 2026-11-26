@@ -1079,7 +1079,7 @@ function rowHtml(k) {
         <option value="免抜">免抜</option>
       </select>
     </td>
-    <td class="amount-cell"><input type="number" id="debit_amount_${k}" placeholder="0" min="0" step="1" oninput="updateTotal()"></td>
+    <td class="amount-cell"><input type="text" inputmode="numeric" autocomplete="off" class="amount-input" id="debit_amount_${k}" placeholder="0" oninput="updateTotal()"></td>
     <td>
       <div class="split-cell">
         <input type="text" id="work_area_${k}" placeholder="工番">
@@ -1108,7 +1108,7 @@ function rowHtml(k) {
         <option value="免抜">免抜</option>
       </select>
     </td>
-    <td class="amount-cell"><input type="number" id="credit_amount_${k}" placeholder="0" min="0" step="1" oninput="updateTotal()"></td>
+    <td class="amount-cell"><input type="text" inputmode="numeric" autocomplete="off" class="amount-input" id="credit_amount_${k}" placeholder="0" oninput="updateTotal()"></td>
   `;
 }
 
@@ -1225,13 +1225,42 @@ function formatYenAmount(str) {
   const formatted = formatNumberWithCommas(str);
   return formatted ? '￥' + formatted : '';
 }
+// ─ 金額欄の桁区切り ─
+// 金額欄（借方・貸方・収支項目・請求書の読み取り金額）は文字の欄にして、入力しながらカンマを付ける。
+// 読むときは amountOf() で数字だけにする。保存JSONにはカンマなしの数字で入れる（以前の保存ファイルと互換）。
+function amountDigits(str) { return String(str ?? '').normalize('NFKC').replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, ''); }
+function amountOf(elOrId) {
+  const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+  return Number(amountDigits(el && el.value)) || 0;
+}
+function isAmountInput(el) { return !!(el && el.classList && el.classList.contains('amount-input')); }
+// 値を入れるとき（プログラムから）もカンマ付きにする
+function setAmount(el, value) {
+  if (typeof el === 'string') el = document.getElementById(el);
+  if (el) el.value = formatNumberWithCommas(amountDigits(value));
+}
+// 入力中：カンマを付け直し、カーソルは「左にある数字の数」が同じ位置に戻す
+function reformatAmountInput(el) {
+  const before = el.value;
+  const caret = el.selectionStart ?? before.length;
+  const digitsLeft = amountDigits(before.slice(0, caret)).length;
+  const after = formatNumberWithCommas(amountDigits(before));
+  if (after === before) return;
+  el.value = after;
+  let pos = 0, seen = 0;
+  while (pos < after.length && seen < digitsLeft) { if (/\d/.test(after[pos])) seen++; pos++; }
+  try { el.setSelectionRange(pos, pos); } catch (e) {}
+}
+// 各欄の oninput（合計の計算など）より先にカンマを付け直す
+document.addEventListener('input', e => { if (isAmountInput(e.target)) reformatAmountInput(e.target); }, true);
+function formatAllAmountInputs() { document.querySelectorAll('input.amount-input').forEach(el => setAmount(el, el.value)); }
+
 function onKessanAmountInput(i) {
-  const el = document.getElementById(`kessan_amount_${i}`);
-  el.value = el.value.replace(/[^0-9]/g, '');
+  // カンマは共通の処理で付く（入力中は「￥」なし、欄を離れると「￥」付き）
 }
 function onKessanAmountFocus(i) {
   const el = document.getElementById(`kessan_amount_${i}`);
-  el.value = el.value.replace(/[^0-9]/g, '');
+  setAmount(el, el.value); // 「￥」を外す
 }
 function onKessanAmountBlur(i) {
   const el = document.getElementById(`kessan_amount_${i}`);
@@ -1249,7 +1278,7 @@ for (let i = 0; i < KESSAN_ROWS; i++) {
   tr.innerHTML = `
     <td data-acc><input type="text" id="kessan_cd_${i}" placeholder="" readonly style="background:#eef3ee; color:#445;"></td>
     <td data-acc><select id="kessan_name_${i}" onchange="onKessanNameChange(${i})">${buildKessanNameOptions()}</select></td>
-    <td class="amount-cell" data-acc><input type="text" inputmode="numeric" id="kessan_amount_${i}" placeholder="0" oninput="onKessanAmountInput(${i})" onfocus="onKessanAmountFocus(${i})" onblur="onKessanAmountBlur(${i})"></td>
+    <td class="amount-cell" data-acc><input type="text" inputmode="numeric" class="amount-input" id="kessan_amount_${i}" placeholder="0" oninput="onKessanAmountInput(${i})" onfocus="onKessanAmountFocus(${i})" onblur="onKessanAmountBlur(${i})"></td>
   `;
   kessanTbody.appendChild(tr);
 }
@@ -1275,8 +1304,8 @@ function updateTotal() {
   let debitSum = 0, creditSum = 0;
   const totalRows = pageCount * NUM_ROWS;
   for (let k = 0; k < totalRows; k++) {
-    debitSum  += parseFloat(document.getElementById(`debit_amount_${k}`)?.value)  || 0;
-    creditSum += parseFloat(document.getElementById(`credit_amount_${k}`)?.value) || 0;
+    debitSum  += amountOf(`debit_amount_${k}`);
+    creditSum += amountOf(`credit_amount_${k}`);
   }
   const mismatch = debitSum !== creditSum;
   for (let p = 0; p < pageCount; p++) {
@@ -1375,7 +1404,9 @@ function collectFormData() {
   const data = { __pageCount: pageCount, __invoicePdf: attachedInvoicePdf };
   document.querySelectorAll('.container input, .container select, .container textarea').forEach(el => {
     if (!el.id || el.closest('[data-noform]')) return; // テンプレート・読み取り欄の操作用部品は保存しない
-    data[el.id] = (el.type === 'radio' || el.type === 'checkbox') ? el.checked : el.value;
+    data[el.id] = (el.type === 'radio' || el.type === 'checkbox') ? el.checked
+      : /^(debit|credit)_amount_\d+$/.test(el.id) ? amountDigits(el.value) // 借方・貸方の金額はカンマなしで保存（以前の保存ファイルと同じ形）
+      : el.value;
   });
   return data;
 }
@@ -1397,7 +1428,8 @@ function applyFormData(data) {
   }
   redrawStampPreview();
   refreshAllAccountDisplays();
-  formatAllKessanAmounts();
+  formatAllAmountInputs();  // 金額欄にカンマを付ける
+  formatAllKessanAmounts(); // 収支項目の金額は「￥」付き
   updateTotal();
   onOfficeChange(); // 事業所CDは事業所名から入れ直す（保存データ・テンプレートに残っている旧コード対策）
 }
@@ -1920,8 +1952,8 @@ function renderTemplateSelect(selectedId) {
 function currentAmountTargets() {
   const debit = [], credit = [];
   for (let k = 0; k < pageCount * NUM_ROWS; k++) {
-    if (parseFloat(gv(`debit_amount_${k}`)) > 0)  debit.push(`debit_amount_${k}`);
-    if (parseFloat(gv(`credit_amount_${k}`)) > 0) credit.push(`credit_amount_${k}`);
+    if (amountOf(`debit_amount_${k}`) > 0)  debit.push(`debit_amount_${k}`);
+    if (amountOf(`credit_amount_${k}`) > 0) credit.push(`credit_amount_${k}`);
   }
   return { debit, credit };
 }
@@ -1998,7 +2030,7 @@ function applyTemplate(tpl, amount) {
   const all = [...t.debit, ...t.credit];
   let msg;
   if (amount > 0 && t.debit.length <= 1 && t.credit.length <= 1 && all.length) {
-    all.forEach(id => { const el = document.getElementById(id); if (el) el.value = String(amount); });
+    all.forEach(id => setAmount(id, amount));
     msg = `「${tpl.name}」を呼び出し、金額 ${yen(amount)} を入れました。内容を確認してください。`;
   } else {
     all.forEach(id => document.getElementById(id)?.classList.add('tpl-needs-input'));
@@ -2113,13 +2145,13 @@ function showAmountCandPop(input) {
     pop.addEventListener('click', e => {
       const item = e.target.closest('[data-value]');
       if (!item || !pop._input) return;
-      pop._input.value = item.dataset.value;
+      setAmount(pop._input, item.dataset.value);
       pop._input.dispatchEvent(new Event('input', { bubbles: true })); // 合計・黄色の解除
       hideAmountCandPop();
     });
     document.body.appendChild(pop);
   }
-  const cur = Number(input.value);
+  const cur = amountOf(input);
   pop.innerHTML = '<div class="amount-cand-head">請求書の金額から選ぶ</div>' +
     invoiceAmountCands.map(a => `<div class="amount-cand-item${a.value === cur ? ' is-current' : ''}" data-value="${a.value}">` +
       `<span class="amount-cand-value">${yen(a.value)}</span><span class="amount-cand-label">${escapeHtml(a.label)}</span></div>`).join('');
@@ -2264,10 +2296,10 @@ function renderInvoiceScan(scan, match) {
     `</select>${match ? `<div class="tpl-match">✓ ${escapeHtml(match.how)}</div>` : ''}<div id="scan-last" class="scan-note"></div></div>`;
   html += '<label>請求金額</label><div class="scan-amount-wrap">';
   if (scan.amounts.length > 1) {
-    html += '<select id="scan-amount-cands" onchange="document.getElementById(\'scan-amount\').value=this.value">' +
+    html += '<select id="scan-amount-cands" onchange="setAmount(\'scan-amount\', this.value)">' +
       scan.amounts.map(a => `<option value="${a.value}">${yen(a.value)}（${escapeHtml(a.label)}）</option>`).join('') + '</select>';
   }
-  html += `<input type="number" id="scan-amount" min="0" step="1" placeholder="金額を入力" value="${top ? top.value : ''}">`;
+  html += `<input type="text" inputmode="numeric" autocomplete="off" class="amount-input" id="scan-amount" placeholder="金額を入力" style="text-align:right;" value="${top ? formatNumberWithCommas(top.value) : ''}">`;
   html += '<span class="scan-amount-hint">← 伝票に入る金額（直接入力も可）</span>';
   html += '</div>';
   if (scan.date) html += `<label>請求日</label><div>${escapeHtml(scan.date)}（参考）</div>`;
@@ -2293,7 +2325,7 @@ function onScanTplChange() {
 function applyInvoiceScan() {
   const id = document.getElementById('scan-tpl')?.value;
   const tpl = loadTemplates().find(t => t.id === id);
-  const amount = Math.round(Number(document.getElementById('scan-amount')?.value) || 0);
+  const amount = amountOf('scan-amount');
   if (!tpl) return applyInvoiceAmountOnly(amount);
   if (formHasContent() && !confirm('今の入力内容をテンプレートの内容で置き換えます。よろしいですか？')) return;
   applyTemplate(tpl, amount);
@@ -2306,9 +2338,10 @@ function applyInvoiceAmountOnly(amount) {
   if (!(amount > 0)) { alert('請求金額を入力してください。'); document.getElementById('scan-amount')?.focus(); return; }
   const debit = document.getElementById('debit_amount_1');
   const credit = document.getElementById('credit_amount_0');
-  const had = [[debit, '借方2行目'], [credit, '貸方1行目']].filter(([el]) => el && el.value && Number(el.value) !== amount);
-  if (had.length && !confirm(`${had.map(([el, n]) => `${n}の金額（${yen(el.value)}）`).join('、')}を書き換えます。よろしいですか？`)) return;
-  debit.value = credit.value = String(amount);
+  const had = [[debit, '借方2行目'], [credit, '貸方1行目']].filter(([el]) => el && amountOf(el) > 0 && amountOf(el) !== amount);
+  if (had.length && !confirm(`${had.map(([el, n]) => `${n}の金額（${yen(amountOf(el))}）`).join('、')}を書き換えます。よろしいですか？`)) return;
+  setAmount(debit, amount);
+  setAmount(credit, amount);
   ['debit_account_1', 'credit_account_0', 'summary_0'].forEach(id => {
     const el = document.getElementById(id);
     if (el && !el.value) el.classList.add('tpl-needs-input');
