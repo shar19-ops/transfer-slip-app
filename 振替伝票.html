@@ -441,6 +441,7 @@
   #invoice-scan .scan-grid > label { font-size: 12px; color: #4a5a4f; }
   #invoice-scan .scan-amount-wrap { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   #invoice-scan .scan-amount-wrap input { width: 150px; }
+  #invoice-scan .scan-amount-hint { font-size: 12px; color: #5a6a5f; white-space: nowrap; }
   #invoice-scan .scan-note { font-size: 12px; color: #6a7a6f; margin-top: 8px; }
   #invoice-scan .scan-warn { color: #a05a00; background: #fff8e1; border: 1px solid #f0d98c; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; }
   #invoice-scan .scan-actions { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
@@ -2267,6 +2268,7 @@ function renderInvoiceScan(scan, match) {
       scan.amounts.map(a => `<option value="${a.value}">${yen(a.value)}（${escapeHtml(a.label)}）</option>`).join('') + '</select>';
   }
   html += `<input type="number" id="scan-amount" min="0" step="1" placeholder="金額を入力" value="${top ? top.value : ''}">`;
+  html += '<span class="scan-amount-hint">← 伝票に入る金額（直接入力も可）</span>';
   html += '</div>';
   if (scan.date) html += `<label>請求日</label><div>${escapeHtml(scan.date)}（参考）</div>`;
   html += '</div>';
